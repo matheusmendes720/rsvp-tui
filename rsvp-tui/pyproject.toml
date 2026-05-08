@@ -1,0 +1,107 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-rust"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rsvp-tui"
+version = "0.1.0"
+description = "Terminal User Interface for RSVP speed reading"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "RSVP Team"}
+]
+keywords = ["speed-reading", "rsvp", "tui", "terminal", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Rust",
+    "Topic :: Education",
+    "Topic :: Text Processing",
+    "Topic :: Utilities",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "textual>=0.52.0",
+    "click>=8.1.0",
+    "rich>=13.0.0",
+    "platformdirs>=4.0.0",
+    "pydantic>=2.0.0",
+    "toml>=0.10.2",
+    "typing-extensions>=4.0.0",
+    # Optional Rust backend - will use fallbacks if not available
+    "rsvp-core>=0.1.0; platform_machine=='x86_64' or platform_machine=='arm64'",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "textual-dev>=1.0.0",
+]
+all = [
+    "pymupdf>=1.23.0",      # PDF support fallback
+    "ebooklib>=0.18.0",     # EPUB support fallback
+    "markdown>=3.5.0",      # Markdown processing fallback
+]
+
+[project.scripts]
+rsvp = "rsvp_tui.cli:main"
+rsvp-tui = "rsvp_tui.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/rsvp-tui"
+Repository = "https://github.com/yourusername/rsvp-tui"
+Issues = "https://github.com/yourusername/rsvp-tui/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rsvp_tui*"]
+
+[tool.setuptools.package-data]
+rsvp_tui = ["*.css", "*.toml"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 100
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "W",   # pycodestyle warnings
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = ["E501"]  # Line too long (handled by black)
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

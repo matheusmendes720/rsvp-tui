@@ -1,0 +1,313 @@
+"""Data models for RSVP TUI."""
+
+from dataclasses import dataclass, field, asdict
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+from enum import Enum
+import json
+
+
+class FileType(str, Enum):
+    """Supported file types."""
+    PDF = "pdf"
+    EPUB = "epub"
+    MARKDOWN = "md"
+    TEXT = "txt"
+
+
+@dataclass
+class Chapter:
+    """Represents a chapter or section of a book."""
+    title: str
+    start_word_index: int
+    end_word_index: int
+    word_count: int = 0
+    
+    def __post_init__(self):
+        if self.word_count == 0:
+            self.word_count = self.end_word_index - self.start_word_index
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "title": self.title,
+            "start_word_index": self.start_word_index,
+            "end_word_index": self.end_word_index,
+            "word_count": self.word_count,
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Chapter":
+        return cls(**data)
+
+
+@dataclass
+class Book:
+    """Represents a book or document."""
+    id: str
+    title: str
+    author: str = "Unknown"
+    file_path: Optional[Path] = None
+    file_type: str = "txt"
+    
+    # Content info
+    word_count: int = 0
+    chapters: List[Chapter] = field(default_factory=list)
+    
+    # Reading state
+    current_word_index: int = 0
+    current_chapter_index: int = 0
+    
+    # Metadata
+    added_date: datetime = field(default_factory=datetime.now)
+    last_read_date: Optional[datetime] = None
+    total_reading_time_seconds: int = 0
+    
+    # Cache
+    cache_file_path: Optional[Path] = None
+    
+    @property
+    def completion_percentage(self) -> float:
+        """Calculate reading completion percentage."""
+        if self.word_count == 0:
+            return 0.0
+        return (self.current_word_index / self.word_count) * 100
+    
+    @property
+    def current_chapter(self) -> Optional[Chapter]:
+        """Get current chapter."""
+        if not self.chapters:
+            return None
+        idx = min(self.current_chapter_index, len(self.chapters) - 1)
+        return self.chapters[idx]
+    
+    def get_chapter_for_word(self, word_index: int) -> Optional[Chapter]:
+        """Find chapter containing given word index."""
+        for chapter in self.chapters:
+            if chapter.start_word_index <= word_index <= chapter.end_word_index:
+                return chapter
+        return None
+    
+    def update_progress(self, word_index: int):
+        """Update reading progress."""
+        self.current_word_index = min(word_index, self.word_count)
+        self.last_read_date = datetime.now()
+        
+        # Update chapter index
+        for i, chapter in enumerate(self.chapters):
+            if chapter.start_word_index <= self.current_word_index <= chapter.end_word_index:
+                self.current_chapter_index = i
+                break
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "author": self.author,
+            "file_path": str(self.file_path) if self.file_path else None,
+            "file_type": self.file_type,
+            "word_count": self.word_count,
+            "chapters": [c.to_dict() for c in self.chapters],
+            "current_word_index": self.current_word_index,
+            "current_chapter_index": self.current_chapter_index,
+            "added_date": self.added_date.isoformat(),
+            "last_read_date": self.last_read_date.isoformat() if self.last_read_date else None,
+            "total_reading_time_seconds": self.total_reading_time_seconds,
+            "cache_file_path": str(self.cache_file_path) if self.cache_file_path else None,
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Book":
+        """Create Book from dictionary."""
+        chapters = [Chapter.from_dict(c) for c in data.get("chapters", [])]
+        
+        return cls(
+            id=data["id"],
+            title=data["title"],
+            author=data.get("author", "Unknown"),
+            file_path=Path(data["file_path"]) if data.get("file_path") else None,
+            file_type=data.get("file_type", "txt"),
+            word_count=data.get("word_count", 0),
+            chapters=chapters,
+            current_word_index=data.get("current_word_index", 0),
+            current_chapter_index=data.get("current_chapter_index", 0),
+            added_date=datetime.fromisoformat(data["added_date"]) if data.get("added_date") else datetime.now(),
+            last_read_date=datetime.fromisoformat(data["last_read_date"]) if data.get("last_read_date") else None,
+            total_reading_time_seconds=data.get("total_reading_time_seconds", 0),
+            cache_file_path=Path(data["cache_file_path"]) if data.get("cache_file_path") else None,
+        )
+
+
+@dataclass
+class Note:
+    """Represents a note linked to a reading position."""
+    id: str
+    book_id: str
+    word_index: int
+    chapter_index: int
+    content: str
+    tags: List[str] = field(default_factory=list)
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)
+    word_context: str = ""
+    
+    def to_markdown(self) -> str:
+        """Convert note to markdown format."""
+        tags_str = ", ".join(self.tags) if self.tags else "none"
+        return f"""## Note at word {self.word_index}
+
+**Context:** {self.word_context}
+**Chapter:** {self.chapter_index}
+**Tags:** {tags_str}
+**Created:** {self.created_at.strftime("%Y-%m-%d %H:%M")}
+
+{self.content}
+
+---
+"""
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "book_id": self.book_id,
+            "word_index": self.word_index,
+            "chapter_index": self.chapter_index,
+            "content": self.content,
+            "tags": self.tags,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "word_context": self.word_context,
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Note":
+        return cls(
+            id=data["id"],
+            book_id=data["book_id"],
+            word_index=data["word_index"],
+            chapter_index=data["chapter_index"],
+            content=data["content"],
+            tags=data.get("tags", []),
+            created_at=datetime.fromisoformat(data["created_at"]),
+            updated_at=datetime.fromisoformat(data["updated_at"]),
+            word_context=data.get("word_context", ""),
+        )
+
+
+@dataclass
+class ReadingSession:
+    """Represents an active reading session."""
+    book_id: str
+    start_time: datetime = field(default_factory=datetime.now)
+    current_word_index: int = 0
+    wpm: int = 300
+    is_playing: bool = False
+    
+    # Statistics
+    words_read: int = 0
+    pauses_count: int = 0
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "book_id": self.book_id,
+            "start_time": self.start_time.isoformat(),
+            "current_word_index": self.current_word_index,
+            "wpm": self.wpm,
+            "is_playing": self.is_playing,
+            "words_read": self.words_read,
+            "pauses_count": self.pauses_count,
+        }
+
+
+@dataclass
+class SessionStats:
+    """Statistics for a reading session."""
+    duration_seconds: int
+    words_read: int
+    average_wpm: float
+    effective_wpm: float
+    completion_percentage: float
+
+
+@dataclass
+class Config:
+    """Application configuration."""
+    
+    # Reading settings
+    default_wpm: int = 300
+    min_wpm: int = 100
+    max_wpm: int = 1000
+    wpm_step: int = 25
+    
+    # Timing settings
+    punctuation_multiplier: float = 2.0
+    pause_on_punctuation: bool = True
+    pause_chars: List[str] = field(default_factory=lambda: [".", "!", "?", ";", ":"])
+    comma_pause_multiplier: float = 1.5
+    
+    # Display settings
+    enable_orp: bool = True
+    focus_mode: bool = False
+    show_progress_bar: bool = True
+    show_context_words: bool = False
+    
+    # Storage paths
+    library_db_path: Path = field(default_factory=lambda: Path.home() / ".rsvp" / "library.db")
+    notes_dir: Path = field(default_factory=lambda: Path.home() / ".rsvp" / "notes")
+    cache_dir: Path = field(default_factory=lambda: Path.home() / ".rsvp" / "cache")
+    config_path: Path = field(default_factory=lambda: Path.home() / ".rsvp" / "config.json")
+    
+    def save(self):
+        """Save configuration to JSON file."""
+        self.config_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        data = {
+            "default_wpm": self.default_wpm,
+            "min_wpm": self.min_wpm,
+            "max_wpm": self.max_wpm,
+            "wpm_step": self.wpm_step,
+            "punctuation_multiplier": self.punctuation_multiplier,
+            "pause_on_punctuation": self.pause_on_punctuation,
+            "pause_chars": self.pause_chars,
+            "comma_pause_multiplier": self.comma_pause_multiplier,
+            "enable_orp": self.enable_orp,
+            "focus_mode": self.focus_mode,
+            "show_progress_bar": self.show_progress_bar,
+            "show_context_words": self.show_context_words,
+        }
+        
+        with open(self.config_path, "w") as f:
+            json.dump(data, f, indent=2)
+    
+    @classmethod
+    def load(cls) -> "Config":
+        """Load configuration from JSON file or create default."""
+        config_path = Path.home() / ".rsvp" / "config.json"
+        
+        if not config_path.exists():
+            config = cls()
+            config.save()
+            return config
+        
+        try:
+            with open(config_path) as f:
+                data = json.load(f)
+            
+            return cls(
+                default_wpm=data.get("default_wpm", 300),
+                min_wpm=data.get("min_wpm", 100),
+                max_wpm=data.get("max_wpm", 1000),
+                wpm_step=data.get("wpm_step", 25),
+                punctuation_multiplier=data.get("punctuation_multiplier", 2.0),
+                pause_on_punctuation=data.get("pause_on_punctuation", True),
+                pause_chars=data.get("pause_chars", [".", "!", "?", ";", ":"]),
+                comma_pause_multiplier=data.get("comma_pause_multiplier", 1.5),
+                enable_orp=data.get("enable_orp", True),
+                focus_mode=data.get("focus_mode", False),
+                show_progress_bar=data.get("show_progress_bar", True),
+                show_context_words=data.get("show_context_words", False),
+                config_path=config_path,
+            )
+        except (json.JSONDecodeError, KeyError):
+            return cls()

@@ -1,0 +1,8 @@
+Speed-up-your-Python-with-Rust/
+GitNexus/eval/
+node_modules/
+.git/
+.venv/
+__pycache__/
+dist/
+target/
