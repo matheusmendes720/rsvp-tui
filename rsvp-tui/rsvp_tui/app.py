@@ -1,4 +1,19 @@
-"""Main TUI Application for RSVP."""
+"""Main TUI Application for RSVP.
+
+Two operating modes:
+
+* **Legacy** (``RSVP_NEW_UI`` unset or ``"0"``): the original
+  single-screen UI with CSS-class toggling. Unchanged from 0.2.x.
+* **New** (``RSVP_NEW_UI=1``): a proper Screen-based UI with
+  ``LibraryScreen`` and ``ReaderScreen``, modal picker/palette,
+  and fluid figure switching. Implemented in
+  :mod:`rsvp_tui.screens`.
+
+The two paths share managers (``LibraryManager``, ``NoteManager``)
+and the config layer (``Config`` / ``ConfigManager``); only the
+presentational layer differs. To revert, set ``RSVP_NEW_UI=0`` (or
+unset it) — no code changes needed.
+"""
 
 from pathlib import Path
 from typing import Optional
@@ -9,10 +24,33 @@ from textual.widgets import Header, Footer, Static, Label, Button
 from textual.reactive import reactive
 from textual.binding import Binding
 
+from .managers.config_manager import ConfigManager
 from .models import Book, Config
 from .managers.library_manager import LibraryManager
 from .managers.note_manager import NoteManager
-from .widgets import ReaderDisplay, LibraryView, NotePanel, ProgressBar, SettingsPanel
+from .screens import (
+    BookOpened,
+    ConfigChanged,
+    FigureChanged,
+    FigureCompleted,
+    FigureStateAdvanced,
+    LibraryScreen,
+    ReaderScreen,
+    new_ui_enabled,
+)
+# Legacy widgets. These are only imported (and therefore only
+# emit the deprecation warning) when ``RSVP_NEW_UI`` is unset
+# or "0" — the new screens-based app doesn't need them. See
+# the ``new_ui_enabled`` check in the compose() / action
+# handlers further down.
+if not new_ui_enabled():
+    from .widgets import (  # noqa: E402, F401 — conditional import
+        LibraryView,
+        NotePanel,
+        ProgressBar,
+        ReaderDisplay,  # deprecated
+        SettingsPanel,  # deprecated
+    )
 
 
 class RSVPApp(App):
@@ -98,16 +136,34 @@ class RSVPApp(App):
     
     def __init__(self):
         super().__init__()
-        self.config = Config.load()
+        # Single source of truth for the in-memory config. The
+        # legacy single-screen path uses self.config directly; the
+        # new Screen path also uses it (passed at push time).
+        self._config_manager = ConfigManager()
+        self.config: Config = self._config_manager.load()
         self.library_manager = LibraryManager(self.config.library_db_path)
         self.note_manager = NoteManager(self.config.notes_dir)
-        
+
         self.current_book: Optional[Book] = None
         self.words: list = []
         self.reader: Optional[ReaderDisplay] = None
+        # When True, route to the Screen-based UI. Cached at
+        # construction so behavior is consistent for the lifetime
+        # of the process even if the env var is toggled.
+        self._new_ui = new_ui_enabled()
     
     def compose(self) -> ComposeResult:
-        """Compose the UI."""
+        """Compose the UI.
+
+        In the new UI we don't compose widgets here — the screens
+        own their own composition. We still yield a Header and
+        Footer so the app-level chrome is consistent. In the
+        legacy UI we keep the original layout.
+        """
+        if self._new_ui:
+            # Header and Footer are yielded by the screens themselves.
+            # We still need to push the initial screen from on_mount.
+            return
         yield Header(show_clock=True)
         
         with Vertical(id="main-content"):
@@ -144,10 +200,98 @@ class RSVPApp(App):
         yield Footer()
     
     def on_mount(self):
-        """Initialize on mount."""
+        """Initialize on mount.
+
+        New UI: push LibraryScreen. Legacy UI: existing single-screen
+        behavior.
+        """
+        if self._new_ui:
+            self.title = "RSVP Speed Reader"
+            self._push_library()
+            return
         self.title = "RSVP Speed Reader"
         self.sub_title = "Library"
         self._show_library()
+
+    # ---- New-UI routing --------------------------------------------------
+
+    def _push_library(self) -> None:
+        """Push the LibraryScreen (new UI)."""
+        # Pop everything; the library is the root.
+        while len(self.screen_stack) > 1:
+            self.pop_screen()
+        if not isinstance(self.screen, LibraryScreen):
+            self.push_screen(LibraryScreen(config=self.config))
+
+    def _push_reader(self, book: Book) -> None:
+        """Load words for ``book`` and push ReaderScreen (new UI)."""
+        words = self.library_manager.load_words(book.id)
+        if not words:
+            self.notify("Error loading book content", severity="error")
+            return
+        self.current_book = book
+        self.words = words
+        self.push_screen(
+            ReaderScreen(book=book, words=words, config=self.config)
+        )
+
+    # ---- Message handlers (new UI) --------------------------------------
+
+    def on_book_opened(self, message: BookOpened) -> None:
+        """A library row was selected; load the book and push reader."""
+        if not self._new_ui:
+            return
+        book = self.library_manager.get_book(message.book_id)
+        if book is None:
+            self.notify("Book not found", severity="error")
+            return
+        self._push_reader(book)
+
+    def on_figure_changed(self, message: FigureChanged) -> None:
+        """Persist the new figure id and show a toast."""
+        if not self._new_ui:
+            return
+        if message.next_id and message.next_id != self.config.figure_id:
+            self._config_manager.update(figure_id=message.next_id)
+            self.config.figure_id = message.next_id
+            self.notify(f"Figure: {message.next_id}")
+
+    def on_figure_state_advanced(self, message: FigureStateAdvanced) -> None:
+        """Auto-save library progress every 100 words."""
+        if not self._new_ui:
+            return
+        if not message.book_id:
+            return
+        if message.index > 0 and message.index % 100 == 0:
+            self.library_manager.update_progress(message.book_id, message.index)
+        # Always mirror onto the in-memory book object so the
+        # library screen can show fresh progress on return.
+        if self.current_book and self.current_book.id == message.book_id:
+            self.current_book.current_word_index = message.index
+
+    def on_figure_completed(self, message: FigureCompleted) -> None:
+        """Mark the book as complete and toast."""
+        if not self._new_ui:
+            return
+        if not message.book_id:
+            return
+        book = self.library_manager.get_book(message.book_id)
+        if book is not None:
+            self.library_manager.update_progress(
+                message.book_id, book.word_count
+            )
+        self.notify("Reading complete!")
+
+    def on_config_changed(self, message: ConfigChanged) -> None:
+        """Settings screen flushed a change; reload our in-memory config.
+
+        The settings screen writes through ``ConfigManager.update``
+        which is atomic on disk; we just re-read to keep the
+        app-level in-memory copy in sync.
+        """
+        if not self._new_ui:
+            return
+        self.config = self._config_manager.load()
     
     def _show_library(self):
         """Show library view."""
@@ -228,6 +372,9 @@ class RSVPApp(App):
     def _on_book_selected(self, book: Book):
         """Handle book selection."""
         self.current_book = book
+        if self._new_ui:
+            self._push_reader(book)
+            return
         self._show_reader()
     
     def _on_book_deleted(self, book_id: str):
@@ -276,11 +423,21 @@ class RSVPApp(App):
     # Actions
     def action_show_library(self):
         """Show library view."""
+        if self._new_ui:
+            self._push_library()
+            return
         self.reader.pause() if self.reader else None
         self._show_library()
-    
+
     def action_show_settings(self):
         """Show settings view."""
+        if self._new_ui:
+            # Phase 3: push the live-preview SettingsScreen modal
+            # over whatever screen is current.
+            from .screens.settings_screen import SettingsScreen
+
+            self.push_screen(SettingsScreen(self.config))
+            return
         self.reader.pause() if self.reader else None
         self._show_settings()
     

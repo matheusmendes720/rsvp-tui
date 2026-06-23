@@ -208,14 +208,36 @@ rspv/
 │   ├── pyproject.toml            # setuptools-rust + maturin
 │   └── rsvp_tui/
 │       ├── cli.py                # Click CLI (legacy, still used)
-│       ├── app.py                # Textual app base
-│       ├── screens/              # 8 screens (library, reader, …)
-│       ├── figures/              # 8 word-display figures
-│       ├── widgets/              # 6 widgets
-│       ├── managers/             # SQLite library, notes
+│       ├── app.py                # Textual app (legacy + new-UI router)
 │       ├── keybindings.py        # action → key map
 │       ├── themes.py             # 8 theme definitions
-│       └── models.py             # Pydantic data models
+│       ├── models.py             # Pydantic data models (Config v2)
+│       ├── util.py               # safe_callback, atomic_write_text
+│       ├── py.typed              # PEP 561 marker
+│       ├── screens/              # Phase 1 screens (RSVP_NEW_UI=1)
+│       │   ├── base.py           #   ScreenBase + FigureState
+│       │   ├── library_screen.py #   Book list
+│       │   ├── reader_screen.py  #   Reading surface
+│       │   ├── settings_screen.py#   Live settings modal
+│       │   ├── figure_picker.py  #   Figure picker modal
+│       │   ├── command_palette.py#   Fuzzy command palette
+│       │   └── messages.py       #   Cross-screen message types
+│       ├── figures/              # Word-display strategies
+│       │   ├── base.py           #   Figure base class
+│       │   ├── word.py           #   Classic ORP single word
+│       │   ├── spritz.py         #   Spritz-style single word
+│       │   ├── bionic.py         #   Bionic Reading
+│       │   ├── chunk.py          #   N-gram chunks
+│       │   ├── line.py           #   Multi-word line
+│       │   ├── minimap.py        #   Mini progress bar
+│       │   ├── pacer.py          #   Pacing indicator
+│       │   ├── stats.py          #   Stats overlay
+│       │   └── registry.py       #   Figure registry singleton
+│       ├── managers/             # SQLite library, notes, config
+│       │   ├── library_manager.py
+│       │   ├── note_manager.py
+│       │   └── config_manager.py # v1 → v2 schema migration
+│       └── widgets/              # Legacy widgets (deprecated shims)
 │
 ├── scripts/                      # workspace task dispatcher
 │   ├── _lib.py                   # logging, subprocess helpers
@@ -249,6 +271,33 @@ rspv/
 ├── .venv/                        # gitignored (uv environment)
 └── AGENTS.md                     # AI agent instructions
 ```
+
+## Phase 1 architecture (screens + figures)
+
+The Python Textual frontend was refactored in v0.3.0 from a
+single-screen UI into a proper Screen-based architecture with
+pluggable **figures** (word-display strategies). The legacy
+single-screen UI is still the default; opt into the new UI
+with ``RSVP_NEW_UI=1``.
+
+```bash
+# Legacy single-screen UI (default)
+uv run rsvp-tui
+
+# New screens-based UI with figure picker, command palette,
+# modal settings, etc.
+RSVP_NEW_UI=1 uv run rsvp-tui
+```
+
+The new UI ships 8 figures: **word** (classic ORP single word),
+**spritz**, **bionic** (Bionic Reading), **chunk** (N-gram
+window), **line** (full sentence slice), **minimap** (vertical
+scrubber), **pacer** (horizontal progress dots), **stats**
+(WPM sparkline). Cycle with Ctrl+T; pick via the figure
+picker modal (default keybinding: ?).
+
+8 built-in themes: dark (default), light, solarized, monokai,
+solarized-dark, gruvbox, nord, dracula. Cycle with Ctrl+Y.
 
 ## Keyboard reference
 

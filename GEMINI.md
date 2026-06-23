@@ -6,8 +6,16 @@
 ### Key Components
 - **rsvp-core**: Rust backend for text processing, ORP calculation, and document parsing (PyO3 bindings).
 - **rsvp-tui**: Python frontend using the Textual framework for an interactive terminal experience.
+- **GitNexus**: Knowledge graph powered code intelligence. Use it for impact analysis and architectural exploration.
 - **rsvp-reader-web**: React-based web implementation.
 - **rsvp-reading**: Svelte-based web implementation.
+
+## GitNexus Knowledge Base
+The project is indexed with GitNexus for deep architectural awareness.
+- **Indexing**: Run `node GitNexus/gitnexus/dist/cli/index.js analyze --embeddings --skills` to refresh the index.
+- **Intelligence**: See `AGENTS.md` and `CLAUDE.md` for GitNexus tool usage instructions.
+- **Generated Skills**: Module-specific skills are located in `.claude/skills/generated/`.
+
 
 ## Core Technologies
 - **Rust**: pyo3, regex, unicode-segmentation, lopdf, pulldown-cmark.
@@ -51,6 +59,11 @@ python launch_rsvp.py
 - `rsvp import <path>`: Import a book into the library.
 - `rsvp library --list`: List all imported books.
 - `rsvp read <id>`: Open a book for reading at a specific WPM.
+
+## Multi-Agent Orchestration
+This project uses a delegated agent model for complex tasks.
+- **Main Agent**: Acting as the Project Manager, orchestrates subagents and synthesizes final reports.
+- **@code_reader**: Specialized subagent for non-destructive research and codebase mapping. Use it for deep investigations.
 
 ## Development Conventions
 

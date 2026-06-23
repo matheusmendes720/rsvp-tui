@@ -279,6 +279,35 @@ Figure picker
 .TP
 \fBadd note            \fR \fIctrl+n        \fR
 Add note at current position
+.SH FIGURES
+A \fIfigure\fR is a word-display strategy. The Phase 1 architecture (\`\`RSVP_NEW_UI=1\`\`) ships the following figures, all read live from \fIrsvp_tui.figures.registry\fR. Override the active figure via \fBConfig.figure_id\fR; cycle at runtime with \fBCtrl+T\fR (or whatever key the user has bound to \fBcycle_figure\fR).
+.TS
+tab(|) lw(16) lw(28) lw(8) lw(40).
+_
+ID | Name | Key | Description
+_
+word|Single Word (ORP)|1|T{}\fIOne word at a time, ORP letter highlighted.\fRT{}
+chunk|Word Chunk|2|T{}\fIShow a window of N words, ORP on the first.\fRT{}
+line|Full Line|3|T{}\fIRender a sentence slice; current word highlighted.\fRT{}
+bionic|Bionic|4|T{}\fIBold the first portion of each word (Bionic style).\fRT{}
+spritz|Spritz|5|T{}\fIPivot letter at a fixed column; right-padded to align.\fRT{}
+pacer|Pacer|6|T{}\fIWord + horizontal pacer dots showing progress.\fRT{}
+minimap|Mini-Map|7|T{}\fIVertical scrubber bar + current word.\fRT{}
+stats|Stats Overlay|8|T{}\fIWord + WPM sparkline + ETA and words-remaining.\fRT{}
+_
+.TE
+
+.SH THEMES
+Built-in colour themes. Override the active theme via \fBConfig.theme\fR; cycle at runtime with \fBCtrl+Y\fR (or whatever key the user has bound to \fBcycle_theme\fR).
+.TP
+\fB\fBdark\fR\fR
+Dark (default)
+.TP
+\fB\fBlight\fR\fR
+Light
+.TP
+\fB\fBsolarized\fR\fR
+Solarized Dark
 .SH FILES
 Default location is \fI$RSVP_HOME\fR or \fI~/.rsvp/\fR:
 \(bu \fIconfig.json\fR \(en user configuration (theme, wpm, keybindings).

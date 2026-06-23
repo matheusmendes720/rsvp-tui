@@ -8,6 +8,12 @@ from enum import Enum
 import json
 
 
+# v2 schema marker. Kept as a module constant so tests and the
+# ConfigManager can import it without a circular dependency on
+# managers.config_manager.
+CURRENT_SCHEMA_VERSION = 2
+
+
 class FileType(str, Enum):
     """Supported file types."""
     PDF = "pdf"
@@ -232,82 +238,80 @@ class SessionStats:
 
 @dataclass
 class Config:
-    """Application configuration."""
-    
+    """Application configuration.
+
+    Note: persistence is delegated to ``managers.config_manager.ConfigManager``.
+    ``Config.save()`` and ``Config.load()`` remain as thin shims so existing
+    callers (``LibraryManager``, ``NoteManager``, the CLI) keep working.
+    """
+
+    # --- v1 fields (preserved for backward compatibility) ---
+
     # Reading settings
     default_wpm: int = 300
     min_wpm: int = 100
     max_wpm: int = 1000
     wpm_step: int = 25
-    
+
     # Timing settings
     punctuation_multiplier: float = 2.0
     pause_on_punctuation: bool = True
     pause_chars: List[str] = field(default_factory=lambda: [".", "!", "?", ";", ":"])
     comma_pause_multiplier: float = 1.5
-    
+
     # Display settings
     enable_orp: bool = True
     focus_mode: bool = False
     show_progress_bar: bool = True
     show_context_words: bool = False
-    
-    # Storage paths
+
+    # --- v2 fields (added by migration) ---
+
+    schema_version: int = 2
+    theme: str = "dark"
+    figure_id: str = "word"
+    figure_params: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    keybindings: Dict[str, str] = field(default_factory=dict)
+
+    # --- Storage paths ---
+
     library_db_path: Path = field(default_factory=lambda: Path.home() / ".rsvp" / "library.db")
     notes_dir: Path = field(default_factory=lambda: Path.home() / ".rsvp" / "notes")
     cache_dir: Path = field(default_factory=lambda: Path.home() / ".rsvp" / "cache")
     config_path: Path = field(default_factory=lambda: Path.home() / ".rsvp" / "config.json")
-    
-    def save(self):
-        """Save configuration to JSON file."""
-        self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        data = {
-            "default_wpm": self.default_wpm,
-            "min_wpm": self.min_wpm,
-            "max_wpm": self.max_wpm,
-            "wpm_step": self.wpm_step,
-            "punctuation_multiplier": self.punctuation_multiplier,
-            "pause_on_punctuation": self.pause_on_punctuation,
-            "pause_chars": self.pause_chars,
-            "comma_pause_multiplier": self.comma_pause_multiplier,
-            "enable_orp": self.enable_orp,
-            "focus_mode": self.focus_mode,
-            "show_progress_bar": self.show_progress_bar,
-            "show_context_words": self.show_context_words,
-        }
-        
-        with open(self.config_path, "w") as f:
-            json.dump(data, f, indent=2)
-    
+
+    def __post_init__(self) -> None:
+        """Clamp ``default_wpm`` to the configured range.
+
+        Loading untrusted JSON from disk could otherwise leave us with
+        a wpm value outside ``[min_wpm, max_wpm]``; we silently clamp
+        here so the rest of the app can assume the invariant holds.
+        """
+        lo = min(self.min_wpm, self.max_wpm)
+        hi = max(self.min_wpm, self.max_wpm)
+        if self.default_wpm < lo:
+            self.default_wpm = lo
+        elif self.default_wpm > hi:
+            self.default_wpm = hi
+
+    # ---- Persistence (delegated to ConfigManager) ----
+
+    def save(self) -> None:
+        """Save configuration to JSON file (atomic)."""
+        # Imported lazily to avoid a circular import at module load.
+        from .managers.config_manager import ConfigManager
+
+        manager = ConfigManager(self.config_path)
+        manager.save(self)
+
     @classmethod
     def load(cls) -> "Config":
-        """Load configuration from JSON file or create default."""
-        config_path = Path.home() / ".rsvp" / "config.json"
-        
-        if not config_path.exists():
-            config = cls()
-            config.save()
-            return config
-        
-        try:
-            with open(config_path) as f:
-                data = json.load(f)
-            
-            return cls(
-                default_wpm=data.get("default_wpm", 300),
-                min_wpm=data.get("min_wpm", 100),
-                max_wpm=data.get("max_wpm", 1000),
-                wpm_step=data.get("wpm_step", 25),
-                punctuation_multiplier=data.get("punctuation_multiplier", 2.0),
-                pause_on_punctuation=data.get("pause_on_punctuation", True),
-                pause_chars=data.get("pause_chars", [".", "!", "?", ";", ":"]),
-                comma_pause_multiplier=data.get("comma_pause_multiplier", 1.5),
-                enable_orp=data.get("enable_orp", True),
-                focus_mode=data.get("focus_mode", False),
-                show_progress_bar=data.get("show_progress_bar", True),
-                show_context_words=data.get("show_context_words", False),
-                config_path=config_path,
-            )
-        except (json.JSONDecodeError, KeyError):
-            return cls()
+        """Load configuration from JSON file, migrating as needed.
+
+        Returns a default ``Config`` (and writes it to disk) if the file
+        does not exist or cannot be parsed.
+        """
+        from .managers.config_manager import ConfigManager
+
+        manager = ConfigManager()
+        return manager.load()

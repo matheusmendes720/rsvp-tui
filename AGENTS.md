@@ -28,35 +28,77 @@ RSVP-TUI is a **Terminal User Interface (TUI) for RSVP (Rapid Serial Visual Pres
 rspv/
 ├── rsvp-core/                  # Rust backend (PyO3 bindings)
 │   ├── Cargo.toml              # Rust package config
-│   ├── src/
-│   │   ├── lib.rs              # PyO3 module entry point
-│   │   ├── text_engine.rs      # Text tokenization & normalization
-│   │   ├── rsvp_core.rs        # ORP & timing calculations
-│   │   ├── file_parser.rs      # PDF/EPUB/Markdown parsers
-│   │   ├── word_stats.rs       # Word frequency analysis
-│   │   └── errors.rs           # Error handling types
-│   └── tests/                  # Rust unit tests
-│       ├── test_text_engine.rs
-│       └── test_rsvp_core.rs
+│   ├── pyproject.toml          # maturin build-system
+│   └── src/
+│       ├── lib.rs              # PyO3 module entry point (53 exports)
+│       ├── text_engine.rs      # Text tokenization & normalization
+│       ├── rsvp_engine.rs      # ORP & timing calculations
+│       ├── file_parser.rs      # PDF/EPUB/Markdown parsers
+│       ├── word_stats.rs       # Word frequency analysis
+│       └── errors.rs           # Error handling types
+│
+├── rsvp-cli/                   # Native Rust CLI (NEW)
+│   ├── Cargo.toml              # clap + ratatui + crossterm
+│   └── src/
+│       ├── main.rs             # clap subcommand parser + dispatch
+│       ├── reader.rs           # Ratatui RSVP reader (--native)
+│       ├── config.rs           # path discovery
+│       ├── output.rs           # JSON / plain output helpers
+│       └── commands/           # one module per subcommand
+│           ├── mod.rs
+│           ├── doctor.rs       # rsvp doctor
+│           ├── help.rs         # rsvp help
+│           ├── import.rs       # rsvp import
+│           ├── library.rs      # rsvp library
+│           ├── remove.rs       # rsvp remove
+│           ├── stats.rs        # rsvp stats
+│           ├── tasks.rs        # rsvp tasks
+│           ├── themes.rs       # rsvp themes
+│           ├── version.rs      # rsvp version
+│           └── where_cmd.rs    # rsvp where
 │
 ├── rsvp-tui/                   # Python TUI frontend
-│   ├── pyproject.toml          # Python package config
+│   ├── pyproject.toml          # Python package config (setuptools-rust)
 │   ├── rsvp_tui/
 │   │   ├── __init__.py         # Rust detection & exports
 │   │   ├── __main__.py         # Module entry point
-│   │   ├── app.py              # Main Textual app (base)
-│   │   ├── app_complete.py     # Full TUI implementation
+│   │   ├── app.py              # Main Textual app (legacy + new-UI router)
 │   │   ├── cli.py              # Click CLI commands
-│   │   ├── models.py           # Data classes (Book, Note, Config)
+│   │   ├── keybindings.py      # Central action → key map
+│   │   ├── models.py           # Data classes (Book, Note, Config v2)
 │   │   ├── fallbacks.py        # Pure Python fallbacks
+│   │   ├── themes.py           # 8 built-in colour themes
+│   │   ├── util.py             # safe_callback, atomic_write_text
+│   │   ├── py.typed            # PEP 561 marker for downstream typing
 │   │   ├── managers/
 │   │   │   ├── library_manager.py   # SQLite library ops
-│   │   │   └── note_manager.py      # Note CRUD operations
-│   │   └── widgets/
-│   │       ├── reader_display.py    # RSVP display widget
-│   │       ├── library_view.py      # Book browser table
-│   │       ├── note_panel.py        # Note sidebar
-│   │       ├── progress_bar.py      # Progress indicator
+│   │   │   ├── note_manager.py      # Note CRUD operations
+│   │   │   └── config_manager.py    # Config persistence + migration
+│   │   ├── screens/                 # Phase 1 screens (RSVP_NEW_UI=1)
+│   │   │   ├── base.py              #   ScreenBase + FigureState
+│   │   │   ├── library_screen.py    #   Book list
+│   │   │   ├── reader_screen.py     #   Reading surface
+│   │   │   ├── settings_screen.py   #   Live settings modal
+│   │   │   ├── figure_picker.py     #   Figure picker modal
+│   │   │   ├── command_palette.py   #   Fuzzy command palette
+│   │   │   └── messages.py          #   Cross-screen message types
+│   │   ├── figures/                 # Word-display strategies
+│   │   │   ├── base.py              #   Figure base class
+│   │   │   ├── word.py              #   Classic ORP word
+│   │   │   ├── spritz.py            #   Spritz-style single word
+│   │   │   ├── bionic.py            #   Bionic Reading
+│   │   │   ├── chunk.py             #   N-gram chunks
+│   │   │   ├── line.py              #   Multi-word line
+│   │   │   ├── minimap.py           #   Mini progress bar
+│   │   │   ├── pacer.py             #   Pacing indicator
+│   │   │   ├── stats.py             #   Stats overlay
+│   │   │   └── registry.py          #   Figure registry singleton
+│   │   └── widgets/                 # Legacy widgets (deprecated)
+│   │       ├── reader_display.py    #   re-export of WordFigure
+│   │       ├── library_view.py      #   Book browser table
+│   │       ├── note_panel.py        #   Note sidebar
+│   │       ├── progress_bar.py      #   Progress indicator
+│   │       └── settings_panel.py    #   re-export of SettingsScreen
 │   │       └── settings_panel.py    # Settings form
 │   └── tests/                  # Python tests
 │
@@ -451,6 +493,92 @@ CREATE TABLE notes (
 
 ## Development Conventions
 
+### Phase 1 Architecture (NEW)
+
+The TUI was refactored in v0.3.0 to a proper Screen-based
+architecture with pluggable "figures" (word-display strategies).
+The legacy single-screen UI is still available by setting
+``RSVP_NEW_UI=0`` (the default); the new screens-based UI is
+opt-in via ``RSVP_NEW_UI=1``.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ app.py — RSVPApp (Textual App)                              │
+│   │                                                          │
+│   ├── if RSVP_NEW_UI=1 (new):                                │
+│   │     └── screens/LibraryScreen                            │
+│   │           └── (push) → screens/ReaderScreen              │
+│   │                 ├── mounts active figure from registry   │
+│   │                 ├── figure_picker modal                  │
+│   │                 └── command_palette modal                │
+│   │                                                          │
+│   └── if RSVP_NEW_UI=0 (legacy):                             │
+│         └── widgets/ReaderDisplay + LibraryView + ...        │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+   ┌──────────────────── shared ──────────────────────┐
+   │  managers/LibraryManager (SQLite)                 │
+   │  managers/NoteManager                             │
+   │  managers/ConfigManager (Config v2 schema)        │
+   │  themes.get_theme(id)        — 8 built-in themes  │
+   │  keybindings.Action          — action → key map   │
+   └───────────────────────────────────────────────────┘
+```
+
+**Screens** (``rsvp_tui/screens/``):
+
+* ``base.py`` — ``ScreenBase`` (shared boilerplate) +
+  ``FigureState`` (singleton-ish state shared across screens).
+* ``library_screen.py`` — book list; selecting one pushes
+  ``ReaderScreen``.
+* ``reader_screen.py`` — the reading surface. Mounts the
+  active figure from the registry; exposes figure cycling,
+  picker, palette; emits messages back to the app for
+  cross-cutting concerns (config persistence, library sync).
+* ``settings_screen.py`` — live settings modal; the
+  replacement for the legacy ``widgets.SettingsPanel``.
+* ``figure_picker.py`` — modal figure picker.
+* ``command_palette.py`` — fuzzy command palette (18
+  commands, ranked by ``SequenceMatcher`` similarity).
+* ``messages.py`` — cross-screen message types
+  (``BookOpened``, ``ConfigChanged``, ``FigureChanged``,
+  ``FigureCompleted``, ``FigureStateAdvanced``).
+
+**Figures** (``rsvp_tui/figures/``):
+
+A figure is a single word-display strategy. The
+``FigureRegistry`` singleton tracks the registered set and
+the user's currently selected one (``config.figure_id``).
+
+| Figure    | id         | Default keybinding |
+|-----------|------------|--------------------|
+| Word      | ``word``   | 1                  |
+| Spritz    | ``spritz`` | 2                  |
+| Bionic    | ``bionic`` | 3                  |
+| Chunk     | ``chunk``  | 4                  |
+| Line      | ``line``   | 5                  |
+| Minimap   | ``minimap``| 6                  |
+| Pacer     | ``pacer``  | 7                  |
+| Stats     | ``stats``  | 8                  |
+
+To add a new figure:
+
+1. Subclass ``Figure`` in ``rsvp_tui/figures/your_figure.py``.
+2. Implement ``render(self, state: FigureState) -> RenderableType``.
+3. Register it in ``rsvp_tui/figures/registry.py``.
+4. Add a test in ``rsvp-tui/tests/test_figures.py``.
+
+The registry takes care of the rest — the picker modal
+and the ``cycle_figure`` action both read from it.
+
+**Config v2** (schema migration):
+
+``Config.schema_version = 2`` introduces:
+``theme``, ``figure_id``, ``figure_params`` (per-figure),
+``keybindings`` (user-overridable action→key map).
+``ConfigManager.load()`` migrates v1 configs on read.
+
 ### Adding New Features
 
 1. **Rust Core**: If the feature involves text processing, add it to `rsvp-core` first
@@ -458,14 +586,26 @@ CREATE TABLE notes (
    - Expose it via `lib.rs` with `#[pyfunction]`
    - Add corresponding fallback in `rsvp_tui/fallbacks.py`
 
-2. **Python UI**: Add UI components in `rsvp_tui/widgets/`
-   - Create new widget inheriting from Textual's widget classes
-   - Add reactive properties for state that affects rendering
-   - Use CSS for styling (Textual's CSS system)
+2. **Python UI (new screens path)**: If the feature is a new screen or modal,
+   add it to `rsvp_tui/screens/`
+   - Subclass `ScreenBase` (or `ModalScreen` for popups)
+   - Emit cross-cutting changes as `messages.*` Message classes
+   - Wire bindings via `BINDINGS = [...]` class attribute
 
-3. **Managers**: For data operations, use or extend managers in `rsvp_tui/managers/`
+3. **Python UI (figure)**: For a new word-display strategy, see
+   "To add a new figure" above.
+
+4. **Legacy Python UI**: If you must touch `widgets/`, prefer
+   adding the new symbol under the new home and keeping a
+   backward-compatible re-export at the legacy path. The
+   `ReaderDisplay` and `SettingsPanel` re-exports use PEP 562
+   lazy `__getattr__` so the deprecation warning fires only
+   when the legacy symbol is actually used.
+
+5. **Managers**: For data operations, use or extend managers in `rsvp_tui/managers/`
    - `LibraryManager`: Book import, retrieval, progress updates
    - `NoteManager`: Note CRUD operations
+   - `ConfigManager`: Config load/save with v1→v2 migration
 
 ### ORP Algorithm
 

@@ -60,6 +60,8 @@ tools/
 .gemini/
 .omg/
 GitNexus/
+.gitnexus/
+.gitnexusignore
 
 # Build artefacts from removed workspaces
 rsvp_workspace.egg-info/

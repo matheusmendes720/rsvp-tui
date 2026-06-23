@@ -1,8 +1,10 @@
 Speed-up-your-Python-with-Rust/
-GitNexus/eval/
+GitNexus/
 node_modules/
 .git/
 .venv/
 __pycache__/
 dist/
 target/
+*.js.map
+*.min.js

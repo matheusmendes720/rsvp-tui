@@ -138,7 +138,17 @@ exclude = ["rsvp-tui/build/", "rsvp-tui/dist/"]
 
 [tool.pytest.ini_options]
 testpaths = ["rsvp-tui/tests"]
-addopts = "-ra --strict-markers"
+# The two ``rsvp_tui.widgets.* deprecated`` warnings fire when
+# the legacy single-screen UI is active (``RSVP_NEW_UI`` unset).
+# They are an HONEST signal that the deprecated path is in use
+# at import time, so we leave them visible in dev runs (the
+# ``-W error`` opt-in below promotes them to hard errors).
+#
+# We do not filter them with ``filterwarnings = ignore`` —
+# that's the lazy choice and would let future regressions slip
+# in silently. The honest choice is to keep them visible and
+# let ``RSVP_NEW_UI=1`` silence them automatically.
+addopts = ["-ra", "--strict-markers"]
 
 # ---- Dev dependency group --------------------------------------------------
 # Use the modern ``dependency-groups`` key (replaces the deprecated

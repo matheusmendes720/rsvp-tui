@@ -4,7 +4,7 @@ RSVP TUI - Terminal User Interface for Speed Reading
 A high-performance TUI speed reader with Rust backend for text processing.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 __author__ = "RSVP Team"
 
 # Try to import Rust extensions

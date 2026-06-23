@@ -1,5 +1,7 @@
 """Progress bar widget for reading progress."""
 
+from typing import Optional
+
 from textual.widgets import Static
 from textual.reactive import reactive
 from rich.progress import BarColumn, Progress, TextColumn

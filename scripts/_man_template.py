@@ -83,6 +83,65 @@ def _load_palette() -> List[Tuple[str, str]]:
         return []
 
 
+def _load_figures() -> List[Tuple[str, str, str, str]]:
+    """Return (id, name, description, default_key) for every
+    registered figure.
+
+    The registry is the same singleton the ``ReaderScreen``
+    reads from at runtime, so adding a figure here updates
+    the man page automatically on the next ``rsvp-man``.
+    """
+    try:
+        from rsvp_tui.figures.registry import default_registry  # type: ignore
+        from rsvp_tui.figures.base import Figure  # type: ignore
+    except Exception:
+        return []
+    try:
+        registry = default_registry()
+    except Exception:
+        return []
+    rows: List[Tuple[str, str, str, str]] = []
+    for cls in registry.all():
+        try:
+            rows.append((
+                cls.id,
+                cls.name,
+                cls.description,
+                getattr(cls, "default_keybinding", "—"),
+            ))
+        except Exception:
+            continue
+    return rows
+
+
+def _load_themes() -> List[Tuple[str, str]]:
+    """Return (id, name) pairs from the in-app theme registry.
+
+    We import the theme registry the same way the Rust CLI
+    does (a hard-coded catalog mirroring ``rsvp_tui.themes``)
+    so the man page can be rendered even if the Python theme
+    module can't be imported (e.g. before ``uv run rsvp-build``
+    has installed ``rsvp_tui`` editable).
+    """
+    # First preference: the live Python registry.
+    try:
+        from rsvp_tui.themes import all_themes  # type: ignore
+        return [(t.id, t.name) for t in all_themes()]
+    except Exception:
+        pass
+    # Fallback: hard-coded list (mirrors ``commands/themes.rs``).
+    return [
+        ("dark", "Dark (default)"),
+        ("light", "Light"),
+        ("solarized", "Solarized"),
+        ("monokai", "Monokai"),
+        ("solarized-dark", "Solarized Dark"),
+        ("gruvbox", "Gruvbox"),
+        ("nord", "Nord"),
+        ("dracula", "Dracula"),
+    ]
+
+
 # --- groff helpers ----------------------------------------------------------
 
 
@@ -133,6 +192,8 @@ def render() -> str:
     today = _dt.date.today().isoformat()
     keys = _load_keybindings()
     palette = _load_palette()
+    figures = _load_figures()
+    themes = _load_themes()
 
     parts: List[str] = []
     # ---- header -----------------------------------------------------------
@@ -298,6 +359,42 @@ def render() -> str:
         parts.append(_h(1, "KEYBINDINGS"))
         parts.append(_p("Defaults; override per\\-user via \\fBConfig.keybindings\\fR."))
         parts.append(_table(keys, (20, 14)))
+
+    # ---- figures (Phase 1 architecture) ----------------------------------
+    if figures:
+        parts.append(_h(1, "FIGURES"))
+        parts.append(_p(
+            "A \\fIfigure\\fR is a word-display strategy. The Phase 1 architecture "
+            "(\\`\\`RSVP_NEW_UI=1\\`\\`) ships the following figures, all read "
+            "live from \\fIrsvp_tui.figures.registry\\fR. Override the active "
+            "figure via \\fBConfig.figure_id\\fR; cycle at runtime with "
+            "\\fBCtrl+T\\fR (or whatever key the user has bound to "
+            "\\fBcycle_figure\\fR)."
+        ))
+        parts.append(".TS\n")
+        parts.append("tab(|) lw(16) lw(28) lw(8) lw(40).\n")
+        parts.append("_\n")
+        parts.append("ID | Name | Key | Description\n")
+        parts.append("_\n")
+        for fid, name, desc, key in figures:
+            # groff's T{} escapes stop the tabs from being
+            # interpreted inside the description.
+            safe_desc = desc.replace("|", "/")
+            parts.append(f"{fid}|{name}|{key}|T{{}}\\fI{safe_desc}\\fRT{{}}\n")
+        parts.append("_\n")
+        parts.append(".TE\n")
+        parts.append("\n")
+
+    # ---- themes -----------------------------------------------------------
+    if themes:
+        parts.append(_h(1, "THEMES"))
+        parts.append(_p(
+            "Built-in colour themes. Override the active theme via "
+            "\\fBConfig.theme\\fR; cycle at runtime with \\fBCtrl+Y\\fR "
+            "(or whatever key the user has bound to \\fBcycle_theme\\fR)."
+        ))
+        for tid, tname in themes:
+            parts.append(_tag(f"\\fB{tid}\\fR", tname))
 
     # ---- files ------------------------------------------------------------
     parts.append(_h(1, "FILES"))
