@@ -1,4 +1,4 @@
-.TH RSVP 1 "2026-06-23" "rsvp 0.3.0" "User Commands"
+.TH RSVP 1 "2026-06-23" "rsvp 0.3.0 (rsvp-cli 0.3.0)" "User Commands"
 .SH NAME
 rsvp \(en terminal speed reader with Rapid Serial Visual Presentation (RSVP) and an in-TUI command palette.
 .SH SYNOPSIS
@@ -9,6 +9,50 @@ RSVP is a terminal user interface (TUI) for reading text files at 300\-1000 word
 Supported file types: Markdown, plain text, EPUB, and PDF.
 Project management is exposed as a set of \fBuv run\fR tasks; see the \fBTASKS\fR section below.
 .SH COMMANDS
+.SS Native Rust CLI (rsvp-cli)
+The native binary at ``rsvp-cli/target/release/rsvp.exe`` is the canonical entry point. It is a single statically-linked executable (``~2.4MB`` stripped) that uses clap 4.6 derive macros (the Rust equivalent of Python's Typer) and ratatui 0.29 for the optional native reader.
+Subcommands exposed by ``rsvp.exe`` (via the ``rsvp-cli`` console script):
+.TP
+\fB\fBrsvp tui\fR\fR
+Launch the interactive Textual TUI (default).
+.TP
+\fB\fBrsvp read <file>\fR\fR
+Read a book by file path. ``--stats`` prints a non-interactive summary; ``--native`` boots the standalone Ratatui reader.
+.TP
+\fB\fBrsvp import <file>\fR\fR
+Import a book into the library.
+.TP
+\fB\fBrsvp library\fR\fR
+Manage the library. ``--list`` / ``--search <text>`` print to stdout.
+.TP
+\fB\fBrsvp remove <book_id>\fR\fR
+Delete a book from the library (with ``--yes`` to skip the prompt).
+.TP
+\fB\fBrsvp stats <book_id>\fR\fR
+Show verbose reading statistics for a book.
+.TP
+\fB\fBrsvp config\fR\fR
+Open the live settings UI (delegates to the Python Textual app).
+.TP
+\fB\fBrsvp doctor\fR\fR
+Print a structured health report. ``--json`` for CI consumption.
+.TP
+\fB\fBrsvp themes\fR\fR
+List the available themes. ``--json`` for scripts.
+.TP
+\fB\fBrsvp where\fR\fR
+Show the data directory paths used by RSVP. ``--json`` for scripts.
+.TP
+\fB\fBrsvp version\fR\fR
+Show version, Python, platform, and rust_core status. ``--json`` available.
+.TP
+\fB\fBrsvp tasks\fR\fR
+Discover and print the workspace task table from pyproject.toml.
+.TP
+\fB\fBrsvp help [<subcommand>]\fR\fR
+Print top-level help (or per-subcommand help).
+.SS Python Textual CLI (rsvp_tui.cli)
+The Python CLI at ``python -m rsvp_tui.cli`` exposes the same subcommand names with the same semantics. Use it directly when you want to avoid the Rust binary (e.g. on a machine without the Rust toolchain) or when you want the click-style grouped help output.
 .TP
 \fBread <file>\fR
 Read a book by file path (imports on first run). Options: \fB\-\-wpm\fR N, \fB\-\-word\fR N, \fB\-\-focus\fR.

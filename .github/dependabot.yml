@@ -1,0 +1,43 @@
+# Dependabot configuration: keep dependencies fresh.
+#
+# Three ecosystems:
+#   - ``uv`` (Python): updates rsvp-tui/pyproject.toml + the
+#     workspace root.
+#   - ``cargo`` (Rust): updates rsvp-core/Cargo.toml +
+#     rsvp-cli/Cargo.toml.
+#   - ``github-actions``: updates workflow pins.
+#
+# Weekly cadence, grouped so the noise is manageable.
+
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels: ["deps", "python"]
+    open-pull-requests-limit: 5
+    groups:
+      python-runtime:
+        patterns: ["*.python-version", "**/pyproject.toml"]
+      python-deps:
+        patterns: ["**/requirements*.txt", "**/pyproject.toml"]
+
+  - package-ecosystem: "cargo"
+    directories:
+      - "/rsvp-core"
+      - "/rsvp-cli"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+    labels: ["deps", "rust"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "github-actions"
+    directory: "/.github/workflows"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+    labels: ["deps", "ci"]
+    open-pull-requests-limit: 3

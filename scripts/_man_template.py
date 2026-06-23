@@ -37,6 +37,25 @@ def _load_version() -> str:
         return "0.3.0"
 
 
+def _load_rust_cli_version() -> str:
+    """Return the rsvp-cli (Rust) version, or "?" if the
+    binary isn't built yet. The binary prints its version
+    string on ``rsvp --version``; we read the same value from
+    the Cargo.toml so the man page is consistent with the
+    binary even before it's compiled.
+    """
+    import tomllib
+
+    cargo = _REPO / "rsvp-cli" / "Cargo.toml"
+    if not cargo.exists():
+        return "?"
+    try:
+        data = tomllib.loads(cargo.read_text(encoding="utf-8"))
+        return data.get("package", {}).get("version", "?")
+    except Exception:
+        return "?"
+
+
 def _load_keybindings() -> List[Tuple[str, str, str]]:
     """Return (action, key, description) triples."""
     try:
@@ -110,13 +129,16 @@ def _table(rows: List[Tuple[str, str, str]], col_widths: Tuple[int, int]) -> str
 
 def render() -> str:
     version = _load_version()
+    rust_cli_version = _load_rust_cli_version()
     today = _dt.date.today().isoformat()
     keys = _load_keybindings()
     palette = _load_palette()
 
     parts: List[str] = []
     # ---- header -----------------------------------------------------------
-    parts.append(f'.TH RSVP 1 "{today}" "rsvp {version}" "User Commands"\n')
+    parts.append(
+        f'.TH RSVP 1 "{today}" "rsvp {version} (rsvp-cli {rust_cli_version})" "User Commands"\n'
+    )
     parts.append(_h(1, "NAME"))
     parts.append(_p("rsvp \\(en terminal speed reader with Rapid Serial Visual "
                     "Presentation (RSVP) and an in-TUI command palette."))
@@ -142,6 +164,47 @@ def render() -> str:
 
     # ---- commands ---------------------------------------------------------
     parts.append(_h(1, "COMMANDS"))
+    # Native Rust CLI subcommands — handled by the rsvp.exe
+    # binary directly. The Python side of the project exposes
+    # the same surface through ``python -m rsvp_tui.cli`` and
+    # through the ``uv run rsvp-cli`` shim.
+    parts.append(_h(2, "Native Rust CLI (rsvp-cli)"))
+    parts.append(_p(
+        "The native binary at ``rsvp-cli/target/release/rsvp.exe`` "
+        "is the canonical entry point. It is a single "
+        "statically-linked executable (``~2.4MB`` stripped) that "
+        "uses clap 4.6 derive macros (the Rust equivalent of "
+        "Python's Typer) and ratatui 0.29 for the optional "
+        "native reader."
+    ))
+    parts.append(_p("Subcommands exposed by ``rsvp.exe`` (via the ``rsvp-cli`` console script):"))
+    rust_commands: List[Tuple[str, str]] = [
+        ("tui", "Launch the interactive Textual TUI (default)."),
+        ("read <file>", "Read a book by file path. ``--stats`` prints a non-interactive "
+                         "summary; ``--native`` boots the standalone Ratatui reader."),
+        ("import <file>", "Import a book into the library."),
+        ("library", "Manage the library. ``--list`` / ``--search <text>`` print to stdout."),
+        ("remove <book_id>", "Delete a book from the library (with ``--yes`` to skip the prompt)."),
+        ("stats <book_id>", "Show verbose reading statistics for a book."),
+        ("config", "Open the live settings UI (delegates to the Python Textual app)."),
+        ("doctor", "Print a structured health report. ``--json`` for CI consumption."),
+        ("themes", "List the available themes. ``--json`` for scripts."),
+        ("where", "Show the data directory paths used by RSVP. ``--json`` for scripts."),
+        ("version", "Show version, Python, platform, and rust_core status. ``--json`` available."),
+        ("tasks", "Discover and print the workspace task table from pyproject.toml."),
+        ("help [<subcommand>]", "Print top-level help (or per-subcommand help)."),
+    ]
+    for name, desc in rust_commands:
+        parts.append(_tag(f"\\fBrsvp {name}\\fR", desc))
+
+    parts.append(_h(2, "Python Textual CLI (rsvp_tui.cli)"))
+    parts.append(_p(
+        "The Python CLI at ``python -m rsvp_tui.cli`` exposes the "
+        "same subcommand names with the same semantics. Use it "
+        "directly when you want to avoid the Rust binary "
+        "(e.g. on a machine without the Rust toolchain) or when "
+        "you want the click-style grouped help output."
+    ))
     commands: List[Tuple[str, str]] = [
         ("read <file>",      "Read a book by file path (imports on first run). "
                              "Options: \\fB\\-\\-wpm\\fR N, \\fB\\-\\-word\\fR N, "
