@@ -1,0 +1,47 @@
+[package]
+name = "rsvp-cli"
+version = "0.3.0"
+edition = "2021"
+authors = ["RSVP Team"]
+description = "Native Rust CLI for the RSVP speed reader (Clap-based, orchestrates the Python TUI)"
+license = "MIT"
+repository = "https://github.com/yourusername/rsvp-tui"
+readme = "README.md"
+
+[[bin]]
+name = "rsvp"
+path = "src/main.rs"
+
+[dependencies]
+# CLI parsing (the Rust equivalent of Python Typer)
+clap = { version = "4.5", features = ["derive", "cargo", "wrap_help"] }
+
+# Subprocess / IO
+anyhow = "1.0"
+thiserror = "1.0"
+
+# TUI rendering (the Rust equivalent of Textual — for the
+# upcoming high-performance RSVP reader screen)
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+pretty_assertions = "1.4"
+proptest = "1.4"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

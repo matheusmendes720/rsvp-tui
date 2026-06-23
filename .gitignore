@@ -11,6 +11,7 @@ htmlcov/
 
 # Rust
 rsvp-core/target/
+rsvp-cli/target/
 **/*.rs.bk
 **/*.pdb
 
