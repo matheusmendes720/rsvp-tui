@@ -71,6 +71,41 @@ def _ensure_python_packages() -> None:
             err(f"failed to install {pkg}; continuing anyway")
 
 
+def _build_rust_cli() -> None:
+    """Build the rsvp-cli Rust binary (the native 2.4MB
+    clap+ratatui CLI). The result lands at
+    ``rsvp-cli/target/release/rsvp[.exe]``.
+
+    We only build when the source actually changed or the
+    binary is missing — ``cargo build --release`` is fast on
+    an incremental build.
+    """
+    import shutil
+    import platform
+
+    rsvp_cli = ROOT / "rsvp-cli"
+    if not (rsvp_cli / "Cargo.toml").exists():
+        info("rsvp-cli/Cargo.toml missing; skipping Rust CLI build")
+        return
+    cargo = shutil.which("cargo")
+    if cargo is None:
+        warn("cargo not on PATH; skipping Rust CLI build")
+        return
+    binname = "rsvp.exe" if platform.system() == "Windows" else "rsvp"
+    binpath = rsvp_cli / "target" / "release" / binname
+    if binpath.exists():
+        info("rsvp-cli binary already up to date; skipping cargo build")
+        return
+    info("$ cargo build --release   (cwd=rsvp-cli)")
+    proc = subprocess.run(
+        [cargo, "build", "--release"],
+        cwd=rsvp_cli,
+        check=False,
+    )
+    if proc.returncode != 0:
+        warn("cargo build of rsvp-cli failed; the binary will be unavailable")
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     args = _parse(argv)
     header("RSVP build")
@@ -79,7 +114,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     else:
         info("mode: release wheel (pip install)")
 
-    _ensure_python_packages()
+    # Order matters here:
+    #   1. Build the standalone Rust CLI binary first (no
+    #      effect on site-packages).
+    #   2. Build the rsvp-core pyo3 extension via maturin
+    #      (this REPLACES the editable install of rsvp-tui
+    #      because maturin's pip install is destructive).
+    #   3. Re-install rsvp-tui and rsvp-core as editable
+    #      packages afterwards so ``import rsvp_tui`` and
+    #      ``import rsvp_core`` both work.
+    _build_rust_cli()
 
     if not args.no_rust:
         ensure("cargo", "maturin")
@@ -102,6 +146,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         ok("Rust extension built and installed")
     else:
         info("--no-rust: assuming rsvp_core is already importable")
+
+    # After maturin ran we defensively re-install both workspace
+    # members so ``import rsvp_tui`` and ``import rsvp_core``
+    # both work.
+    _ensure_python_packages()
 
     ok("build complete")
     return 0

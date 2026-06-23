@@ -52,6 +52,7 @@ from scripts.docs import main as rsvp_docs                        # noqa: F401
 from scripts.man import main as rsvp_man                          # noqa: F401
 from scripts.bench import main as rsvp_bench                      # noqa: F401
 from scripts.run import main as _rsvp_run                         # noqa: F401
+from scripts.cli_dispatch import main as rsvp_cli                  # noqa: F401
 
 # All four pass-throughs (``read`` / ``import`` / ``library`` /
 # ``config``) share the same implementation; the underlying CLI

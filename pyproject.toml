@@ -14,6 +14,14 @@ license = {text = "MIT"}
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+# Pin to the stable, well-tested maturin. Newer minors have
+# changed CLI flag defaults in the past; we want the
+# ``--uv`` and ``--release`` semantics documented in the
+# helper scripts to keep working.
+[tool.uv.build-backend]
+module-name = "scripts"
+module-root = ""
 dependencies = [
     # The actual Python package is the rsvp-tui workspace member.
     # Declaring it here + as a workspace source below makes uv
@@ -42,6 +50,11 @@ include-package-data = true
 [project.scripts]
 # discovery
 rsvp-tasks         = "rsvp_workspace:rsvp_tasks"
+# The native Rust CLI binary. If the Rust toolchain or the
+# compiled rsvp.exe is unavailable, the helper scripts print
+# a clear "build first" message and exit 0 so ``uv run``
+# still works in pure-Python environments.
+rsvp-cli           = "rsvp_workspace:rsvp_cli"
 
 # in-TUI helpers (Python orchestration around the Rust + Textual app)
 rsvp-tui           = "rsvp_tui.cli:main"
