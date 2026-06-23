@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# =====================================================================
+#  RSVP workspace — cross-platform task dispatcher
+# ---------------------------------------------------------------------
+#  Usage:  bin/rsvp-task <name> [args...]
+#  Example: bin/rsvp-task tui
+#           bin/rsvp-task test -k figure
+#
+#  Works on Linux, macOS, and the bash that ships with Git for
+#  Windows. Windows-native users should use ``rspv.bat`` instead;
+#  it forwards to this same dispatcher.
+#
+#  Discovery:  bin/rsvp-task help
+# =====================================================================
+set -euo pipefail
+
+# Resolve the workspace root from this script's location so the
+# dispatcher works regardless of the caller's cwd.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$ROOT"
+
+# Pick a Python: prefer the workspace venv, then ``python`` on PATH.
+if [[ -x "$ROOT/.venv/Scripts/python.exe" ]]; then
+    PY="$ROOT/.venv/Scripts/python.exe"
+elif [[ -x "$ROOT/.venv/bin/python" ]]; then
+    PY="$ROOT/.venv/bin/python"
+elif command -v python >/dev/null 2>&1; then
+    PY="$(command -v python)"
+else
+    echo "error: no python on PATH (activate .venv or install Python)" >&2
+    exit 127
+fi
+
+# Map task name -> scripts module.
+# Anything not in the table falls through to ``rsvp_tui.cli``.
+declare -A TASKS=(
+    [tui]="rsvp_tui.cli"
+    [read]="rsvp_tui.cli"
+    [r]="rsvp_tui.cli"
+    [import]="rsvp_tui.cli"
+    [i]="rsvp_tui.cli"
+    [library]="rsvp_tui.cli"
+    [ls]="rsvp_tui.cli"
+    [config]="rsvp_tui.cli"
+    [cfg]="rsvp_tui.cli"
+    [remove]="rsvp_tui.cli"
+    [rm]="rsvp_tui.cli"
+    [stats]="rsvp_tui.cli"
+    [info]="rsvp_tui.cli"
+    [doctor]="rsvp_tui.cli"
+    [diagnose]="rsvp_tui.cli"
+    [themes]="rsvp_tui.cli"
+    [where]="rsvp_tui.cli"
+    [version]="rsvp_tui.cli"
+    [palette]="scripts.palette"
+    [demo]="scripts.demo"
+    [build]="scripts.build"
+    [dev]="scripts.build"
+    [sync]="scripts.sync"
+    [clean]="scripts.clean"
+    [test]="scripts.test"
+    [lint]="scripts.lint"
+    [format]="scripts.format"
+    [typecheck]="scripts.typecheck"
+    [verify]="scripts.verify"
+    [docs]="scripts.docs"
+    [man]="scripts.man"
+    [bench]="scripts.bench"
+    [tasks]="scripts.tasks"
+    [help]="scripts.tasks"
+)
+
+name="${1:-help}"
+if [[ "$name" == "help" || "$name" == "-h" || "$name" == "--help" ]]; then
+    exec "$PY" -m scripts.tasks
+fi
+
+module="${TASKS[$name]:-rsvp_tui.cli}"
+
+# dev = build --editable; clean = clean (--all on clean-all)
+extra=()
+case "$name" in
+    dev)        extra=(--editable) ;;
+    clean-all)  name=clean; extra=(--all) ;;
+esac
+
+# Strip the task name from the args, then forward the rest.
+if [[ $# -gt 0 ]]; then shift; fi
+
+exec "$PY" -m "$module" "$name" "${extra[@]}" "$@"

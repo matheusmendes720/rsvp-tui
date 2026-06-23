@@ -1,0 +1,140 @@
+[project]
+name = "rsvp-workspace"
+version = "0.3.0"
+description = "RSVP speed-reading TUI — workspace + uv task surface"
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+
+# A minimal build-system so uv can produce a wheel that bundles
+# the ``scripts/`` Python package (the source of every
+# workspace-level console script). Real work lives in the
+# subprojects; this wheel exists purely to ship the
+# task-dispatcher entry points.
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+dependencies = [
+    # The actual Python package is the rsvp-tui workspace member.
+    # Declaring it here + as a workspace source below makes uv
+    # install it as an editable path-based package, so
+    # ``import rsvp_tui`` resolves to the live source. The
+    # ``[project.scripts]`` table below is the source of every
+    # ``rsvp-*`` console script; those live in ``rsvp_workspace``
+    # which re-exports ``main`` functions from ``scripts.*``.
+    "rsvp-tui",
+]
+
+[tool.setuptools]
+# Auto-discover the ``rsvp_workspace`` and ``scripts`` packages
+# so the workspace wheel ships both. The actual entry-point
+# implementations live in ``scripts.*`` and are re-exported by
+# ``rsvp_workspace/__init__.py``.
+packages = ["rsvp_workspace", "scripts"]
+include-package-data = true
+
+# ---- Console scripts (the canonical task surface) ---------------------------
+# Every entry here is a real `uv run rsvp-<name>` task. The task table
+# in ``scripts/tasks.py`` is the single source of truth for the
+# descriptive text shown by ``uv run rsvp-tasks``; the binary
+# entry points below are defined as names in ``rsvp_workspace``
+# (which re-exports the ``main`` functions from ``scripts.*``).
+[project.scripts]
+# discovery
+rsvp-tasks         = "rsvp_workspace:rsvp_tasks"
+
+# in-TUI helpers (Python orchestration around the Rust + Textual app)
+rsvp-tui           = "rsvp_tui.cli:main"
+rsvp-palette       = "rsvp_workspace:rsvp_palette"
+rsvp-demo          = "rsvp_workspace:rsvp_demo"
+
+# build / install / clean
+rsvp-build         = "rsvp_workspace:rsvp_build"
+rsvp-dev           = "rsvp_workspace:rsvp_dev"
+rsvp-sync          = "rsvp_workspace:rsvp_sync"
+rsvp-clean         = "rsvp_workspace:rsvp_clean"
+
+# quality gates
+rsvp-test          = "rsvp_workspace:rsvp_test"
+rsvp-lint          = "rsvp_workspace:rsvp_lint"
+rsvp-format        = "rsvp_workspace:rsvp_format"
+rsvp-typecheck     = "rsvp_workspace:rsvp_typecheck"
+rsvp-verify        = "rsvp_workspace:rsvp_verify"
+
+# docs / packaging
+rsvp-docs          = "rsvp_workspace:rsvp_docs"
+rsvp-man           = "rsvp_workspace:rsvp_man"
+rsvp-bench         = "rsvp_workspace:rsvp_bench"
+# pass-through shortcuts — these are forwarded to rsvp_tui.cli:main
+rsvp-read          = "rsvp_workspace:rsvp_read"
+rsvp-import        = "rsvp_workspace:rsvp_import"
+rsvp-library       = "rsvp_workspace:rsvp_library"
+rsvp-config        = "rsvp_workspace:rsvp_config"
+
+# ---- uv workspace config ---------------------------------------------------
+# Only rsvp-tui is a Python workspace member. rsvp-core is a
+# Cargo-only crate and is built by maturin at install time.
+[tool.uv]
+managed = true
+# Mark the workspace as a packaged project so ``uv sync`` installs
+# the console-script entry points (rsvp-tasks, rsvp-test, rsvp-lint,
+# etc.) into ``.venv/Scripts/`` on every install.
+package = true
+
+[tool.uv.sources]
+# rsvp-tui is the Python frontend. Treat it as a path source so
+# uv installs it as an editable package. maturin builds the
+# rsvp-core pyo3 extension during rsvp-tui's install.
+rsvp-tui  = { path = "./rsvp-tui", editable = true }
+# rsvp-core is a Cargo crate at ./rsvp-core/ that ships a
+# maturin-friendly pyproject.toml in the same directory. uv
+# installs it from that path, which triggers maturin to build
+# the pyo3 extension. Pinned to ``rsvp-tui`` (not the workspace)
+# because rsvp-tui is the package that actually depends on it.
+rsvp-core = { path = "./rsvp-core", editable = true }
+
+[tool.uv.workspace]
+# rsvp-tui is a path source above, not a workspace member. The
+# workspace here is a single-package one: just the root
+# (``rsvp-workspace``) which exists only to ship the
+# ``rsvp-*`` console scripts. Removing the member list keeps
+# uv from trying to install the same package twice.
+members = []
+
+# ---- Quality tool config (mirrors rsvp-tui/pyproject.toml) -----------------
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["rsvp-tui/tests"]
+addopts = "-ra --strict-markers"
+
+# ---- Dev dependency group --------------------------------------------------
+# Use the modern ``dependency-groups`` key (replaces the deprecated
+# ``tool.uv.dev-dependencies``). uv 0.11+ honours both, but this is
+# forward-compatible.
+[dependency-groups]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-asyncio>=0.21",
+    "ruff>=0.1",
+    "black>=23",
+    "mypy>=1.0",
+    "textual-dev>=1.0",
+    "maturin>=1.5",
+]

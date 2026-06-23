@@ -131,7 +131,8 @@ impl ParseResult {
 }
 
 /// Parse PDF from bytes
-pub fn parse_pdf_bytes(data: &[u8]) -> RsvpResult<ParseResult> {
+#[allow(dead_code)] // ``data`` is part of the public API contract.
+pub fn parse_pdf_bytes(_data: &[u8]) -> RsvpResult<ParseResult> {
     // For now, return a placeholder error as PDF parsing requires external deps
     // In production, use lopdf or pdf-extract
     Err(RsvpError::pdf(
@@ -142,52 +143,59 @@ pub fn parse_pdf_bytes(data: &[u8]) -> RsvpResult<ParseResult> {
 /// Parse EPUB from bytes
 pub fn parse_epub_bytes(data: &[u8]) -> RsvpResult<ParseResult> {
     use std::io::Cursor;
-    
+
     let cursor = Cursor::new(data);
-    let doc = epub::doc::EpubDoc::from_reader(cursor)
+    let mut doc = epub::doc::EpubDoc::from_reader(cursor)
         .map_err(|e| RsvpError::epub(format!("Failed to parse EPUB: {}", e)))?;
-    
-    let metadata = doc.metadata;
-    
-    // Extract title
-    let title = metadata.get("title")
-        .and_then(|t| t.first().cloned())
+
+    // epub 2.1+ exposes metadata as a Vec<MetadataItem>, not a
+    // HashMap. Each item has a ``property`` (e.g. "title",
+    // "creator") and a ``value``. Pick the first matching one.
+    let title = doc
+        .metadata
+        .iter()
+        .find(|m| m.property == "title")
+        .map(|m| m.value.clone())
         .unwrap_or_else(|| "Untitled".to_string());
-    
-    // Extract author
-    let author = metadata.get("creator")
-        .and_then(|a| a.first().cloned())
+
+    let author = doc
+        .metadata
+        .iter()
+        .find(|m| m.property == "creator")
+        .map(|m| m.value.clone())
         .unwrap_or_else(|| "Unknown".to_string());
-    
-    // Get spine (reading order)
+
+    // Get spine (reading order). Each SpineItem carries an
+    // ``idref`` string that is the lookup key for
+    // ``EpubDoc::get_resource``.
     let spine = doc.spine.clone();
-    
+
     let mut full_text = String::new();
     let mut chapters: Vec<Chapter> = Vec::new();
     let mut current_word_index: usize = 0;
-    
-    for (idx, id) in spine.iter().enumerate() {
-        if let Some((content, _mime)) = doc.get_resource(id) {
+
+    for (idx, item) in spine.iter().enumerate() {
+        if let Some((content, _mime)) = doc.get_resource(&item.idref) {
             let content_str = String::from_utf8_lossy(&content);
-            
+
             // Extract text from HTML
             let text = extract_text_from_html(&content_str);
             let normalized = normalize_whitespace(&text);
-            
+
             if !normalized.is_empty() {
                 let word_count = tokenize_text(&normalized).len();
-                
+
                 // Try to get chapter title
                 let chapter_title = extract_chapter_title(&content_str)
                     .unwrap_or_else(|| format!("Chapter {}", idx + 1));
-                
+
                 let chapter = Chapter {
                     title: chapter_title,
                     start_word_index: current_word_index,
                     end_word_index: current_word_index + word_count,
                     content: normalized.clone(),
                 };
-                
+
                 chapters.push(chapter);
                 full_text.push_str(&normalized);
                 full_text.push(' ');
@@ -195,7 +203,7 @@ pub fn parse_epub_bytes(data: &[u8]) -> RsvpResult<ParseResult> {
             }
         }
     }
-    
+
     Ok(ParseResult {
         title,
         author,
@@ -228,9 +236,14 @@ pub fn parse_markdown(text: &str) -> RsvpResult<ParseResult> {
                 };
                 chapters.push(chapter);
             }
-            
+
             current_chapter_title = line[2..].trim().to_string();
             current_chapter_start = tokenize_text(&plain_text).len();
+            // Skip the header line — chapter titles are not part
+            // of the word stream the reader sees. Including them
+            // would make every chapter start with its own title
+            // (``Chapter 1 Word1 Word2 …``).
+            continue;
         } else if line.starts_with("## ") {
             // Level 2 header - could be sub-chapter
             let words = tokenize_text(&plain_text);
@@ -243,13 +256,17 @@ pub fn parse_markdown(text: &str) -> RsvpResult<ParseResult> {
                     content: plain_text[current_chapter_start..].to_string(),
                 };
                 chapters.push(chapter);
-                
+
                 current_chapter_title = line[3..].trim().to_string();
                 current_chapter_start = words.len();
             }
+            // Same rationale: skip the ``## Heading`` line so its
+            // words don't pollute the next chapter.
+            continue;
         }
-        
-        // Remove markdown formatting and add to plain text
+
+        // Non-header line — remove markdown formatting and add
+        // to plain text.
         let cleaned = clean_markdown_line(line);
         plain_text.push_str(&cleaned);
         plain_text.push(' ');
@@ -351,21 +368,62 @@ fn extract_chapter_title(html: &str) -> Option<String> {
     None
 }
 
-/// Clean markdown line to plain text
+/// Clean a single markdown line to plain text.
+///
+/// Strips the things that show up in a reader's eye and would
+/// otherwise pollute the RSVP word stream:
+///
+/// * ATX headers (``# …``, ``## …``, …)
+/// * emphasis markers (``**``, ``*``, ``__``, ``_``, ``~~``, ````)
+/// * inline code backticks
+/// * Markdown link syntax — ``[text](url)`` becomes ``text``
+///
+/// Image syntax (``![alt](url)``) and reference-style links are
+/// not handled here (out of scope for the v1 reader).
 fn clean_markdown_line(line: &str) -> String {
     let mut result = line.to_string();
-    
-    // Remove emphasis markers
+
+    // Strip ATX headers: ``# ``, ``## ``, … ``###### `` at the
+    // very start of the line. We don't allow indented headers
+    // here because the chapter splitter already broke the text
+    // on bare ``#``/``##`` lines, so the ones we see here are
+    // content paragraphs.
+    let trimmed = result.trim_start();
+    let header_count = trimmed.chars().take_while(|c| *c == '#').count();
+    if header_count > 0 && header_count <= 6 {
+        // Drop the leading ``#``s and any whitespace after them.
+        let after = &trimmed[header_count..];
+        let after = after.trim_start();
+        // If the header is setext-style (``# Heading ===``)
+        // also strip the trailing marker — but that's rare in
+        // our usage; leave as plain text.
+        if result.starts_with(|_: char| true) {
+            // ``result`` may have leading whitespace; reconstruct
+            // from ``trimmed[header_count..]`` and skip the rest.
+            result = after.to_string();
+        } else {
+            // result didn't actually start with the marker (it was
+            // already inside code). Keep as-is.
+            result = line.to_string();
+        }
+    }
+
+    // Remove emphasis markers (and stray backticks for inline code).
     for marker in ["**", "*", "__", "_", "~~", "`"] {
         result = result.replace(marker, "");
     }
-    
+
     // Remove links but keep text [text](url) -> text
     while let Some(start) = result.find('[') {
         if let Some(end) = result[start..].find("](") {
             if let Some(close) = result[start + end..].find(')') {
-                let text = &result[start + 1..start + end];
-                result.replace_range(start..start + end + close + 1, text);
+                // Compute the replacement text first, drop the
+                // borrow, then call ``replace_range``. Holding the
+                // immutable borrow across the mutable call is a
+                // classic borrow-checker error.
+                let inner = result[start + 1..start + end].to_string();
+                let end_total = end + close + 1;
+                result.replace_range(start..start + end_total, &inner);
             } else {
                 break;
             }
@@ -373,7 +431,7 @@ fn clean_markdown_line(line: &str) -> String {
             break;
         }
     }
-    
+
     result
 }
 

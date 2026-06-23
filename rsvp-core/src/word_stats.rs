@@ -188,7 +188,8 @@ pub fn get_vocabulary_stats(words: &[String]) -> VocabularyStats {
     let mut freq_vec: Vec<_> = freq_dist.iter().collect();
     freq_vec.sort_by(|a, b| b.1.cmp(a.1));
     
-    let most_common: Vec<(String, u32)> = freq_vec.iter()
+    let most_common: Vec<(String, u32)> = freq_vec
+        .into_iter()
         .take(10)
         .map(|(w, c)| (w.clone(), *c))
         .collect();

@@ -1,0 +1,276 @@
+.TH RSVP 1 "2026-06-23" "rsvp 0.3.0" "User Commands"
+.SH NAME
+rsvp \(en terminal speed reader with Rapid Serial Visual Presentation (RSVP) and an in-TUI command palette.
+.SH SYNOPSIS
+\fBrsvp\fR [\fIOPTIONS\fR] [\fIcommand\fR] [\fIargs\fR]
+Launches the TUI when no subcommand is given.
+.SH DESCRIPTION
+RSVP is a terminal user interface (TUI) for reading text files at 300\-1000 words per minute using the RSVP method: a single word is shown at a time, centered on its Optimal Recognition Point (ORP). The Python frontend (Textual) is backed by a Rust core (\fIrsvp\-core\fR) that handles tokenization, ORP calculation, and file parsing.
+Supported file types: Markdown, plain text, EPUB, and PDF.
+Project management is exposed as a set of \fBuv run\fR tasks; see the \fBTASKS\fR section below.
+.SH COMMANDS
+.TP
+\fBread <file>\fR
+Read a book by file path (imports on first run). Options: \fB\-\-wpm\fR N, \fB\-\-word\fR N, \fB\-\-focus\fR.
+.TP
+\fBimport <file>\fR
+Import a book into the library. Prints ID, word count, and chapter count.
+.TP
+\fBlibrary\fR
+Browse the library. With no flags, opens the library screen. \fB\-\-list\fR / \fB\-\-search\fR \fItext\fR print to stdout.
+.TP
+\fBremove <book_id>\fR
+Delete a book from the library (prompts to confirm).
+.TP
+\fBstats <book_id>\fR
+Show verbose reading statistics for a book.
+.TP
+\fBconfig\fR
+Open the live settings UI with debounced auto\-save.
+.TP
+\fBdoctor\fR
+Print a JSON diagnostic report. Exit 0 if healthy.
+.TP
+\fBthemes\fR
+List the available themes (current theme is starred).
+.TP
+\fBwhere\fR
+Print the data directory paths (config, DB, notes).
+.TP
+\fBversion\fR
+Print version, Python, platform, schema, and rust core status.
+.SS Aliases
+Short forms resolve to the canonical subcommand: \fBr\fR=\fBread\fR, \fBopen\fR=\fBread\fR, \fBi\fR/\fBadd\fR=\fBimport\fR, \fBls\fR/\fBlist\fR=\fBlibrary\fR, \fBrm\fR=\fBremove\fR, \fBinfo\fR=\fBstats\fR, \fBcfg\fR=\fBconfig\fR, \fBdiagnose\fR=\fBdoctor\fR.
+.SH OPTIONS
+.TP
+\fB\fB\-\-version\fR\fR
+Print the version of rsvp and exit.
+.TP
+\fB\fB\-\-help\fR\fR
+Print the grouped help (Reading, Library, Configuration, Diagnostics, App).
+.SH TASKS
+Project management lives in the workspace \fBpyproject.toml\fR and is run via \fBuv run <task>\fR. Each task is a real Python entry point in \fIscripts/\fR; run \fBuv run tasks\fR for the live table.
+.TP
+\fB\fBuv run tui\fR\fR
+Launch the interactive TUI (default).
+.TP
+\fB\fBuv run read\fR\fR
+Forward to \fBrsvp read\fR.
+.TP
+\fB\fBuv run import\fR\fR
+Forward to \fBrsvp import\fR.
+.TP
+\fB\fBuv run library\fR\fR
+Forward to \fBrsvp library\fR.
+.TP
+\fB\fBuv run config\fR\fR
+Forward to \fBrsvp config\fR.
+.TP
+\fB\fBuv run doctor\fR\fR
+Forward to \fBrsvp doctor\fR with workspace extras.
+.TP
+\fB\fBuv run themes\fR\fR
+Forward to \fBrsvp themes\fR.
+.TP
+\fB\fBuv run where\fR\fR
+Forward to \fBrsvp where\fR.
+.TP
+\fB\fBuv run version\fR\fR
+Forward to \fBrsvp version\fR.
+.TP
+\fB\fBuv run palette\fR\fR
+Open the in\-TUI command palette directly.
+.TP
+\fB\fBuv run demo\fR\fR
+Run the dependency\-free \fIdemo_tui.py\fR.
+.TP
+\fB\fBuv run build\fR\fR
+Build the Rust extension and install the Python package.
+.TP
+\fB\fBuv run dev\fR\fR
+Editable install (\fBmaturin develop \-\-release\fR).
+.TP
+\fB\fBuv run sync\fR\fR
+\fBuv sync\fR (use \fB\-\-rebuild\fR to rebuild Rust).
+.TP
+\fB\fBuv run clean\fR\fR
+Remove build/, dist/, eggs, bytecode, caches. \fB\-\-all\fR also wipes \fI.venv/\fR and \fIuv.lock\fR.
+.TP
+\fB\fBuv run test\fR\fR
+Run the pytest suite (extras forwarded).
+.TP
+\fB\fBuv run lint\fR\fR
+\fBruff check\fR + \fBblack \-\-check\fR.
+.TP
+\fB\fBuv run format\fR\fR
+\fBblack\fR + \fBruff check \-\-fix\fR.
+.TP
+\fB\fBuv run typecheck\fR\fR
+\fBmypy \-\-strict\fR.
+.TP
+\fB\fBuv run verify\fR\fR
+Full quality gate: \fBlint\fR + \fBtypecheck\fR + \fBtest\fR.
+.TP
+\fB\fBuv run docs\fR\fR
+Build the man page and snapshot the CLI help.
+.TP
+\fB\fBuv run man\fR\fR
+Render / view / install \fIrsvp.1\fR.
+.TP
+\fB\fBuv run bench\fR\fR
+Run the \fIcargo bench\fR micro\-benchmarks.
+.TP
+\fB\fBuv run tasks\fR\fR
+Print the live task table (this section, refreshed).
+.SH IN\-TUI COMMAND PALETTE
+Press \fBCtrl+P\fR inside the TUI to open the fuzzy command palette. The current command set is:
+.TP
+\fBnext_figure\fR
+Next Figure
+.TP
+\fBprev_figure\fR
+Previous Figure
+.TP
+\fBopen_picker\fR
+Open Figure Picker
+.TP
+\fBtoggle_play\fR
+Play / Pause
+.TP
+\fBjump_start\fR
+Jump to Start
+.TP
+\fBjump_end\fR
+Jump to End
+.TP
+\fBincrease_speed\fR
+Increase WPM (+25)
+.TP
+\fBdecrease_speed\fR
+Decrease WPM (-25)
+.TP
+\fBwpm_300\fR
+Set WPM = 300
+.TP
+\fBwpm_400\fR
+Set WPM = 400
+.TP
+\fBwpm_500\fR
+Set WPM = 500
+.TP
+\fBwpm_600\fR
+Set WPM = 600
+.TP
+\fBtheme_dark\fR
+Theme: Dark
+.TP
+\fBtheme_light\fR
+Theme: Light
+.TP
+\fBtheme_solarized\fR
+Theme: Solarized
+.TP
+\fBtoggle_focus\fR
+Toggle Focus Mode
+.TP
+\fBadd_note\fR
+Add Note at Position
+.TP
+\fBshow_help\fR
+Show Help
+Type to filter; \fBEnter\fR picks the top match; \fBEsc\fR dismisses.
+.SH KEYBINDINGS
+Defaults; override per\-user via \fBConfig.keybindings\fR.
+.TP
+\fBquit                \fR \fIq             \fR
+Quit
+.TP
+\fBshow library        \fR \fIl             \fR
+Open library
+.TP
+\fBshow settings       \fR \fIs             \fR
+Open settings
+.TP
+\fBshow help           \fR \fIquestion_mark \fR
+Show help
+.TP
+\fBcommand palette     \fR \fIctrl+p        \fR
+Command palette
+.TP
+\fBtoggle play         \fR \fIspace         \fR
+Play / pause
+.TP
+\fBprev word           \fR \fIleft          \fR
+Previous word
+.TP
+\fBnext word           \fR \fIright         \fR
+Next word
+.TP
+\fBincrease speed      \fR \fIup            \fR
+Faster
+.TP
+\fBdecrease speed      \fR \fIdown          \fR
+Slower
+.TP
+\fBjump start          \fR \fIhome          \fR
+Jump to start
+.TP
+\fBjump end            \fR \fIend           \fR
+Jump to end
+.TP
+\fBtoggle focus        \fR \fIf             \fR
+Focus mode
+.TP
+\fBtoggle panel        \fR \fItab           \fR
+Toggle side panel
+.TP
+\fBnext figure         \fR \fIn             \fR
+Next figure
+.TP
+\fBprev figure         \fR \fIshift+n       \fR
+Previous figure
+.TP
+\fBfigure picker       \fR \fIctrl+g        \fR
+Figure picker
+.TP
+\fBadd note            \fR \fIctrl+n        \fR
+Add note at current position
+.SH FILES
+Default location is \fI$RSVP_HOME\fR or \fI~/.rsvp/\fR:
+\(bu \fIconfig.json\fR \(en user configuration (theme, wpm, keybindings).
+\(bu \fIlibrary.db\fR \(en SQLite store of books, chapters, and notes.
+\(bu \fInotes/\fR \(en on\-disk note storage.
+\(bu \fIcache/\fR \(en per\-book parsed\-text cache.
+
+.SH ENVIRONMENT
+.TP
+\fB\fBRSVP_HOME\fR\fR
+Override the data directory (default \fI~/.rsvp\fR).
+.TP
+\fB\fBRSVP_NEW_UI\fR\fR
+Force\-enable the new SettingsScreen (set to \fB1\fR).
+.TP
+\fB\fBNO_COLOR\fR\fR
+Disable ANSI colour in the helper scripts.
+.TP
+\fB\fBPYTHONIOENCODING\fR\fR
+Set to \fButf\-8\fR when reading non\-ASCII books.
+.SH EXAMPLES
+Launch the TUI at the library view:
+    rsvp
+Read a book at 450 WPM in focus mode:
+    rsvp read ~/books/sapiens.epub \-\-wpm 450 \-\-focus
+Import a Markdown file and read it:
+    rsvp i ./essay.md && rsvp r ./essay.md
+Re\-build the Rust extension in dev mode:
+    uv run dev
+Run the full quality gate:
+    uv run verify
+Render and install the man page:
+    uv run man \-\-install
+.SH DIAGNOSTICS
+If a book fails to import, the database is missing, or a keybinding fails to resolve, run \fBuv run doctor\fR \(en the JSON report names the offending file. Exits 0 only on a healthy install.
+Exit codes: \fB0\fR success, \fB1\fR generic error, \fB130\fR interrupted (Ctrl\-C).
+.SH SEE ALSO
+\fBproject.json\fR (5), \fBuv\fR (1), \fBman\fR (1).
+Online docs: \fIhttps://example.com/rsvp\fR (placeholder).

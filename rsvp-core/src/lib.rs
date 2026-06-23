@@ -10,7 +10,7 @@ use pyo3::prelude::*;
 
 pub mod text_engine;
 pub mod file_parser;
-pub mod rsvp_core;
+pub mod rsvp_engine;
 pub mod word_stats;
 pub mod errors;
 
@@ -33,7 +33,7 @@ pub use file_parser::{
     DocumentMetadata,
 };
 
-pub use rsvp_core::{
+pub use rsvp_engine::{
     calculate_orp_index,
     calculate_word_delay,
     split_word_for_display,
@@ -51,10 +51,19 @@ pub use word_stats::{
 pub use errors::{RsvpError, RsvpResult};
 
 /// Python module initialization
+///
+/// The function is named ``rsvp_core`` so pyo3 generates the
+/// ``PyInit_rsvp_core`` symbol that the Python extension loader
+/// expects. To avoid a name collision with the
+/// ``rsvp_engine`` submodule, the inner crate was renamed
+/// Python module initialization
+///
+/// The function is named ``rsvp_core`` so pyo3 generates the
+/// ``PyInit_rsvp_core`` symbol that the Python extension loader
+/// expects. The inner crate was renamed from ``rsvp_core`` to
+/// ``rsvp_engine`` to avoid a name collision.
 #[pymodule]
 fn rsvp_core(_py: Python, m: &PyModule) -> PyResult<()> {
-    pyo3_log::init();
-    
     // Text engine functions
     m.add_wrapped(wrap_pyfunction!(py_tokenize_text))?;
     m.add_wrapped(wrap_pyfunction!(py_split_into_sentences))?;
@@ -88,7 +97,7 @@ fn rsvp_core(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 // Python wrapper functions
-use pyo3::types::{PyDict, PyList};
+use pyo3::types::PyDict;
 
 #[pyfunction(name = "tokenize_text")]
 fn py_tokenize_text(text: &str) -> Vec<String> {
@@ -140,7 +149,7 @@ fn py_parse_plain_text(text: &str) -> ParseResult {
 
 #[pyfunction(name = "calculate_orp_index")]
 fn py_calculate_orp_index(word: &str) -> usize {
-    rsvp_core::calculate_orp_index(word)
+    rsvp_engine::calculate_orp_index(word)
 }
 
 #[pyfunction(name = "calculate_word_delay")]
@@ -150,22 +159,22 @@ fn py_calculate_word_delay(
     punctuation_multiplier: f32,
     pause_chars: Vec<char>,
 ) -> u64 {
-    rsvp_core::calculate_word_delay(word, wpm, punctuation_multiplier, &pause_chars)
+    rsvp_engine::calculate_word_delay(word, wpm, punctuation_multiplier, &pause_chars)
 }
 
 #[pyfunction(name = "split_word_for_display")]
 fn py_split_word_for_display(word: &str, orp_index: usize) -> WordParts {
-    rsvp_core::split_word_for_display(word, orp_index)
+    rsvp_engine::split_word_for_display(word, orp_index)
 }
 
 #[pyfunction(name = "estimate_reading_time")]
 fn py_estimate_reading_time(word_count: usize, wpm: u32) -> (u32, u32) {
-    rsvp_core::estimate_reading_time(word_count, wpm)
+    rsvp_engine::estimate_reading_time(word_count, wpm)
 }
 
 #[pyfunction(name = "should_pause_at_punctuation")]
 fn py_should_pause_at_punctuation(word: &str, pause_chars: Vec<char>) -> bool {
-    rsvp_core::should_pause_at_punctuation(word, &pause_chars)
+    rsvp_engine::should_pause_at_punctuation(word, &pause_chars)
 }
 
 #[pyfunction(name = "calculate_word_frequency_distribution")]

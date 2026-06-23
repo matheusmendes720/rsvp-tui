@@ -36,8 +36,9 @@ dependencies = [
     "pydantic>=2.0.0",
     "toml>=0.10.2",
     "typing-extensions>=4.0.0",
-    # Optional Rust backend - will use fallbacks if not available
-    "rsvp-core>=0.1.0; platform_machine=='x86_64' or platform_machine=='arm64'",
+    # The Rust backend is supplied by the workspace
+    # (./rsvp-core/, built by maturin at install time).
+    "rsvp-core>=0.1.0",
 ]
 
 [project.optional-dependencies]

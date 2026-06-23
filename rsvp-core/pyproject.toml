@@ -1,0 +1,34 @@
+[build-system]
+requires = ["maturin>=1.5"]
+build-backend = "maturin"
+
+[project]
+name = "rsvp-core"
+version = "0.1.0"
+description = "High-performance RSVP speed reader core — Python wrapper for the rsvp-core Rust crate (built by maturin)"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
+[tool.maturin]
+# The Cargo crate in this same directory already contains a
+# ``#[pymodule] fn rsvp_core`` and the right ``crate-type =
+# ["cdylib", "rlib"]`` settings. maturin needs to be told:
+# build a pyo3 extension, name it ``rsvp_core`` (matches the
+# Cargo crate name and the Python module name), strip the
+# binary, and don't generate a wrapper package.
+#
+# The package layout maturin produces by default (a folder
+# called ``rsvp_core/`` with an ``__init__.py`` that does
+# ``from .rsvp_core import *``) is fragile on Windows when the
+# ``.pyd`` filename includes the ABI tag. We avoid the
+# fragile path by setting ``module-name = "rsvp_core"`` and
+# not placing an ``__init__.py`` in this directory — maturin
+# then produces a flat module, which Python's import system
+# loads directly.
+module-name = "rsvp_core"
+bindings = "pyo3"
+strip = true
+# Release profile for the .pyd (override with
+# ``maturin develop --profile=dev`` for faster local builds).
+profile = "release"
+

@@ -1,8 +1,68 @@
-Speed-up-your-Python-with-Rust/
-GitNexus/eval/
-node_modules/
-.git/
+# Build / cache artefacts
 .venv/
 __pycache__/
-dist/
-target/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Rust
+rsvp-core/target/
+**/*.rs.bk
+**/*.pdb
+
+# Python build
+rsvp-tui/build/
+rsvp-tui/dist/
+rsvp-tui/*.egg-info/
+**/__editable__*.pth
+**/__editable___*_finder.py
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*.un~
+.DS_Store
+Thumbs.db
+
+# Logs / temp
+*.log
+*.tmp
+tmp/
+data/
+test_dir/
+.cache/
+
+# Reference materials (not part of the deliverable)
+Speed-up-your-Python-with-Rust/
+Guia*Estrate*gico*.md
+TUI_BFF_ARCHITECTURE.md
+TUI_DESIGN_SYSTEM_DDD.md
+.TUI_BFF_ARCHITECTURE.md.swp
+.TUI_BFF_ARCHITECTURE.md.un~
+
+# Old standalone launchers replaced by the workspace task surface
+rsvp.py
+rsvp.bat
+
+# A local-only builder sandbox (used to be a separate repo for
+# experimenting with cross-platform TUI bundling; no longer relevant
+# to the workspace deliverables).
+tools/
+
+# Session / agent state that should never be in the repo
+.claude/
+.gemini/
+.omg/
+GitNexus/
+
+# Build artefacts from removed workspaces
+rsvp_workspace.egg-info/
+
+# Local PRDs / planning scratch
+prd.json
+pi-session-*.html
