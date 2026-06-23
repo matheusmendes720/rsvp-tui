@@ -22,7 +22,7 @@ thiserror = "1.0"
 
 # TUI rendering (the Rust equivalent of Textual — for the
 # upcoming high-performance RSVP reader screen)
-ratatui = "0.29"
+ratatui = "0.30"
 crossterm = "0.28"
 
 # Logging
