@@ -26,6 +26,7 @@ from textual.reactive import reactive
 from textual.widgets import Header, Footer, Static
 
 from ..figures import Figure, FigureState, default_registry
+from ..logging_ import telemetry
 from ..models import Book, Config
 from ..widgets import NotePanel, NavigationPanel, ProgressBar
 from .base import RSVPBaseScreen
@@ -252,6 +253,8 @@ class ReaderScreen(RSVPBaseScreen):
         if new_id == self.current_figure_id:
             return
         was_playing = bool(self._figure and self._figure.is_playing)
+        prev_id = self.current_figure_id or None
+        telemetry.figure_swap(from_id=prev_id, to_id=new_id)
         self._mount_figure(new_id)
         if was_playing and self._figure is not None:
             self._figure.start()
@@ -389,6 +392,11 @@ class ReaderScreen(RSVPBaseScreen):
         current = self._book.current_chapter_index
         new_index = current + delta
         if 0 <= new_index < len(self._chapters):
+            telemetry.chapter_nav(
+                book_id=self._book.id,
+                from_chapter=current,
+                to_chapter=new_index,
+            )
             self._nav_panel.jump_to_chapter(new_index)
 
     def on_navigation_jump(self, message: NavigationJump) -> None:
@@ -397,6 +405,14 @@ class ReaderScreen(RSVPBaseScreen):
             self._figure.jump_to(message.word_index)
         # Update book chapter index
         if self._nav_panel is not None:
+            prev = self._book.current_chapter_index
+            next_ = message.chapter_index
+            if prev != next_:
+                telemetry.chapter_nav(
+                    book_id=self._book.id,
+                    from_chapter=prev,
+                    to_chapter=next_,
+                )
             self._book.current_chapter_index = message.chapter_index
 
     def action_next_figure(self) -> None:
