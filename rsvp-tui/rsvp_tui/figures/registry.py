@@ -20,9 +20,12 @@ registry via ``FigureRegistry()``.
 
 from __future__ import annotations
 
+import logging
 from typing import Dict, Iterable, List, Optional
 
 from .base import Figure
+
+log = logging.getLogger(__name__)
 
 
 class FigureRegistry:
@@ -41,6 +44,7 @@ class FigureRegistry:
     def register(self, fig: Figure) -> None:
         if not fig.id:
             raise ValueError("figure must have a non-empty id")
+        log.debug("FigureRegistry: registered figure id=%s name=%r", fig.id, fig.name)
         self._figs[fig.id] = fig
 
     def register_all(self, figs: Iterable[Figure]) -> None:

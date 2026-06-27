@@ -15,6 +15,7 @@ presentational layer differs. To revert, set ``RSVP_NEW_UI=0`` (or
 unset it) — no code changes needed.
 """
 
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -24,10 +25,12 @@ from textual.widgets import Header, Footer, Static, Label, Button
 from textual.reactive import reactive
 from textual.binding import Binding
 
+from .figures import FigureState
 from .managers.config_manager import ConfigManager
 from .models import Book, Config
 from .managers.library_manager import LibraryManager
 from .managers.note_manager import NoteManager
+from .logging_ import init_logging, shutdown_logging, telemetry, telemetry_error
 from .screens import (
     BookOpened,
     ConfigChanged,
@@ -36,8 +39,11 @@ from .screens import (
     FigureStateAdvanced,
     LibraryScreen,
     ReaderScreen,
+    SettingsScreen,
     new_ui_enabled,
 )
+
+log = logging.getLogger(__name__)
 # Legacy widgets. These are only imported (and therefore only
 # emit the deprecation warning) when ``RSVP_NEW_UI`` is unset
 # or "0" — the new screens-based app doesn't need them. See
@@ -151,6 +157,17 @@ class RSVPApp(App):
         # construction so behavior is consistent for the lifetime
         # of the process even if the env var is toggled.
         self._new_ui = new_ui_enabled()
+
+        # Initialise logging for the TUI process.
+        init_logging(self.config)
+        log.info(
+            "RSVPApp init: new_ui=%s, figure_id=%s, wpm=%d, db=%s",
+            self._new_ui,
+            self.config.figure_id,
+            self.config.default_wpm,
+            self.config.library_db_path,
+        )
+        telemetry(event="app.startup", new_ui=self._new_ui, figure=self.config.figure_id)
     
     def compose(self) -> ComposeResult:
         """Compose the UI.
@@ -191,11 +208,11 @@ class RSVPApp(App):
                 )
             
             # Settings View (initially hidden)
+            # NOTE: SettingsPanel is deprecated and maps to SettingsScreen which
+            # does not accept on_save. The legacy compose path is non-functional.
+            # Use RSVP_NEW_UI=1 to get the working Screen-based UI.
             with Vertical(id="settings-view", classes="hidden"):
-                yield SettingsPanel(
-                    self.config,
-                    on_save=self._on_settings_saved,
-                )
+                pass
         
         yield Footer()
     
@@ -208,31 +225,218 @@ class RSVPApp(App):
         if self._new_ui:
             self.title = "RSVP Speed Reader"
             self._push_library()
+            log.info("on_mount: pushed LibraryScreen (new UI)")
             return
         self.title = "RSVP Speed Reader"
         self.sub_title = "Library"
         self._show_library()
+        log.info("on_mount: legacy UI, showing library")
 
     # ---- New-UI routing --------------------------------------------------
+
+    # ---- Cross-screen actions (called with app. prefix) ---------
+
+    def action_toggle_play(self) -> None:
+        """Toggle play/pause in reader (Space)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_toggle_play()
+
+    def action_next_word(self) -> None:
+        """Go to next word in reader (Right arrow)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_next_word()
+
+    def action_prev_word(self) -> None:
+        """Go to previous word in reader (Left arrow)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_prev_word()
+
+    def action_increase_speed(self) -> None:
+        """Increase reading speed (Up arrow)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_increase_speed()
+
+    def action_decrease_speed(self) -> None:
+        """Decrease reading speed (Down arrow)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_decrease_speed()
+
+    def action_jump_start(self) -> None:
+        """Jump to start of book (Home)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_jump_start()
+
+    def action_jump_end(self) -> None:
+        """Jump to end of book (End)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_jump_end()
+
+    def action_toggle_focus(self) -> None:
+        """Toggle focus mode (F)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_toggle_focus()
+
+    def action_next_figure(self) -> None:
+        """Cycle to next figure (N)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_next_figure()
+
+    def action_prev_figure(self) -> None:
+        """Cycle to previous figure (Shift+N)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_prev_figure()
+
+    def action_prev_chapter(self) -> None:
+        """Go to previous chapter ([)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_prev_chapter()
+
+    def action_next_chapter(self) -> None:
+        """Go to next chapter (])."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_next_chapter()
+
+    def action_toggle_navigation(self) -> None:
+        """Toggle navigation panel (Ctrl+N)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_toggle_navigation()
+
+    def action_open_picker(self) -> None:
+        """Open figure picker (Ctrl+G)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_open_picker()
+
+    def action_open_palette(self) -> None:
+        """Open command palette (Ctrl+P)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_open_palette()
+
+    def action_open_file_explorer(self) -> None:
+        """Open file explorer (Ctrl+O)."""
+        from .screens.file_explorer import FileExplorerScreen
+
+        def on_file_selected(path: Optional[str]) -> None:
+            if path:
+                try:
+                    book = self.library_manager.import_book(path)
+                    if book:
+                        self._push_reader(book)
+                except Exception as e:
+                    self.notify(f"Error: {e}", severity="error")
+
+        self.push_screen(FileExplorerScreen(), on_file_selected)
+
+    # Figure quick-switch actions (1-8)
+    def action_figure_1(self) -> None:
+        self._set_figure(0)
+
+    def action_figure_2(self) -> None:
+        self._set_figure(1)
+
+    def action_figure_3(self) -> None:
+        self._set_figure(2)
+
+    def action_figure_4(self) -> None:
+        self._set_figure(3)
+
+    def action_figure_5(self) -> None:
+        self._set_figure(4)
+
+    def action_figure_6(self) -> None:
+        self._set_figure(5)
+
+    def action_figure_7(self) -> None:
+        self._set_figure(6)
+
+    def action_figure_8(self) -> None:
+        self._set_figure(7)
+
+    def _set_figure(self, index: int) -> None:
+        """Set figure by index (0-7)."""
+        from .screens.reader_screen import ReaderScreen
+        from .figures import default_registry
+
+        if not isinstance(self.screen, ReaderScreen):
+            return
+        registry = default_registry()
+        figs = registry.all()
+        if 0 <= index < len(figs):
+            self.screen.action_next_figure()  # Use the screen's method
+
+    def action_refresh(self) -> None:
+        """Refresh library (Ctrl+R)."""
+        self.notify("Refreshing library...")
+        self._push_library()
+
+    def action_open_settings(self) -> None:
+        """Open settings screen (Ctrl+S)."""
+        if self._new_ui:
+            self.push_screen(SettingsScreen(config=self.config))
 
     def _push_library(self) -> None:
         """Push the LibraryScreen (new UI)."""
         # Pop everything; the library is the root.
+        prev = type(self.screen).__name__ if len(self.screen_stack) else "root"
         while len(self.screen_stack) > 1:
             self.pop_screen()
         if not isinstance(self.screen, LibraryScreen):
             self.push_screen(LibraryScreen(config=self.config))
+        log.info("screen.push: LibraryScreen from=%s", prev)
+        telemetry(event="screen.push", screen="LibraryScreen", from_screen=prev)
 
     def _push_reader(self, book: Book) -> None:
         """Load words for ``book`` and push ReaderScreen (new UI)."""
         words = self.library_manager.load_words(book.id)
         if not words:
             self.notify("Error loading book content", severity="error")
+            log.warning("_push_reader: no words loaded for book_id=%s", book.id)
             return
         self.current_book = book
         self.words = words
         self.push_screen(
             ReaderScreen(book=book, words=words, config=self.config)
+        )
+        log.info(
+            "book.open: id=%s title=%r word_count=%d",
+            book.id,
+            book.title,
+            len(words),
+        )
+        telemetry(
+            event="book.open",
+            book_id=book.id,
+            title=book.title,
+            word_count=len(words),
         )
 
     # ---- Message handlers (new UI) --------------------------------------
@@ -244,6 +448,7 @@ class RSVPApp(App):
         book = self.library_manager.get_book(message.book_id)
         if book is None:
             self.notify("Book not found", severity="error")
+            log.warning("on_book_opened: book not found id=%s", message.book_id)
             return
         self._push_reader(book)
 
@@ -255,6 +460,8 @@ class RSVPApp(App):
             self._config_manager.update(figure_id=message.next_id)
             self.config.figure_id = message.next_id
             self.notify(f"Figure: {message.next_id}")
+            log.info("figure.swap: %s -> %s", message.prev_id, message.next_id)
+            telemetry(event="figure.swap", from_id=message.prev_id, to_id=message.next_id)
 
     def on_figure_state_advanced(self, message: FigureStateAdvanced) -> None:
         """Auto-save library progress every 100 words."""
@@ -281,6 +488,11 @@ class RSVPApp(App):
                 message.book_id, book.word_count
             )
         self.notify("Reading complete!")
+        log.info(
+            "book.complete: book_id=%s",
+            message.book_id,
+        )
+        telemetry(event="book.complete", book_id=message.book_id)
 
     def on_config_changed(self, message: ConfigChanged) -> None:
         """Settings screen flushed a change; reload our in-memory config.
@@ -292,6 +504,7 @@ class RSVPApp(App):
         if not self._new_ui:
             return
         self.config = self._config_manager.load()
+        log.info("config.changed: keys=%s", list(message.keys))
     
     def _show_library(self):
         """Show library view."""
@@ -343,18 +556,20 @@ class RSVPApp(App):
         # Create reader widget
         container = self.query_one("#reader-display")
         container.remove_children()
-        
-        self.reader = ReaderDisplay(
-            words=self.words,
-            start_index=self.current_book.current_word_index,
+
+        # Build FigureState for the Figure widget
+        state = FigureState(
+            words=tuple(self.words),
+            word_index=self.current_book.current_word_index,
             wpm=self.config.default_wpm,
-            enable_orp=self.config.enable_orp,
-            focus_mode=self.focus_mode,
+            is_playing=False,
             punctuation_multiplier=self.config.punctuation_multiplier,
-            pause_chars=self.config.pause_chars,
+            pause_chars=tuple(self.config.pause_chars),
+            comma_pause_multiplier=self.config.comma_pause_multiplier,
             on_word_change=self._on_word_changed,
             on_complete=self._on_reading_complete,
         )
+        self.reader = ReaderDisplay(state=state, params={"orp_enabled": self.config.enable_orp})
         container.mount(self.reader)
         
         # Update progress bar
@@ -429,18 +644,6 @@ class RSVPApp(App):
         self.reader.pause() if self.reader else None
         self._show_library()
 
-    def action_show_settings(self):
-        """Show settings view."""
-        if self._new_ui:
-            # Phase 3: push the live-preview SettingsScreen modal
-            # over whatever screen is current.
-            from .screens.settings_screen import SettingsScreen
-
-            self.push_screen(SettingsScreen(self.config))
-            return
-        self.reader.pause() if self.reader else None
-        self._show_settings()
-    
     def action_toggle_play(self):
         """Toggle play/pause."""
         if self.current_view == "reader" and self.reader:
@@ -537,3 +740,5 @@ class RSVPApp(App):
                 self.current_book.id,
                 self.reader.word_index,
             )
+        log.info("on_unmount: final progress saved")
+        telemetry(event="app.shutdown")

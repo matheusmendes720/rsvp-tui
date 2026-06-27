@@ -61,7 +61,7 @@ def test_config_save_load(mock_config, tmp_path):
 
 
 def test_config_v1_migrates_to_v2(tmp_path):
-    """A v1-shaped JSON file loads with all v2 fields populated."""
+    """A v1-shaped JSON file loads and migrates all the way to v3."""
     v1_payload = {
         # no schema_version, no v2 fields
         "default_wpm": 425,
@@ -86,8 +86,8 @@ def test_config_v1_migrates_to_v2(tmp_path):
     # v1 fields preserved
     assert cfg.default_wpm == 425
     assert cfg.pause_chars == [".", "!", "?"]
-    # v2 fields populated with defaults
-    assert cfg.schema_version == CURRENT_SCHEMA_VERSION == 2
+    # v3 fields populated with defaults (migrations 1→2→3 applied)
+    assert cfg.schema_version == CURRENT_SCHEMA_VERSION == 3
     assert cfg.theme == "dark"
     assert cfg.figure_id == "word"
     assert cfg.figure_params == {}

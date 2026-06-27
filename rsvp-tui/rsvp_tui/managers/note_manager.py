@@ -1,12 +1,16 @@
 """Note management for reading annotations."""
 
 import json
+import logging
 import uuid
 from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
 
 from ..models import Note
+from ..logging_ import telemetry
+
+log = logging.getLogger(__name__)
 
 
 class NoteManager:
@@ -41,7 +45,7 @@ class NoteManager:
         except (json.JSONDecodeError, KeyError):
             return []
     
-    def _save_notes_for_book(self, book_id: str, notes: List[Note]):
+    def _save_notes_for_book(self, book_id: str, notes: List[Note]) -> None:
         """Save notes for a book."""
         notes_file = self._get_notes_file(book_id)
         
@@ -67,11 +71,19 @@ class NoteManager:
             tags=tags or [],
             word_context=word_context,
         )
-        
+
         notes = self._load_notes_for_book(book_id)
         notes.append(note)
         self._save_notes_for_book(book_id, notes)
-        
+
+        log.info(
+            "note.create: book_id=%s note_id=%s word_index=%d",
+            book_id,
+            note.id,
+            word_index,
+        )
+        telemetry.note_created(book_id=book_id, note_id=note.id, word_index=word_index)
+
         return note
     
     def get_notes_for_book(self, book_id: str) -> List[Note]:
@@ -108,14 +120,16 @@ class NoteManager:
     def delete_note(self, book_id: str, note_id: str) -> bool:
         """Delete a note."""
         notes = self._load_notes_for_book(book_id)
-        
+
         original_count = len(notes)
         notes = [n for n in notes if n.id != note_id]
-        
+
         if len(notes) < original_count:
             self._save_notes_for_book(book_id, notes)
+            log.info("note.delete: book_id=%s note_id=%s", book_id, note_id)
+            telemetry.note_deleted(book_id=book_id, note_id=note_id)
             return True
-        
+
         return False
     
     def export_notes_to_markdown(self, book_id: str, book_title: str) -> Path:

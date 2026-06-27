@@ -27,15 +27,17 @@ from textual.widgets import Header, Footer, Static
 
 from ..figures import Figure, FigureState, default_registry
 from ..models import Book, Config
-from ..widgets import NotePanel, ProgressBar
+from ..widgets import NotePanel, NavigationPanel, ProgressBar
 from .base import RSVPBaseScreen
 from .command_palette import CommandPaletteScreen
 from .figure_picker import FigurePickerScreen
+from .file_explorer import FileExplorerScreen
 from .messages import (
     ConfigChanged,
     FigureChanged,
     FigureCompleted,
     FigureStateAdvanced,
+    NavigationJump,
 )
 
 log = logging.getLogger(__name__)
@@ -64,6 +66,10 @@ class ReaderScreen(RSVPBaseScreen):
         width: 35;
         height: 100%;
     }
+    ReaderScreen #nav-panel {
+        width: 30;
+        height: 100%;
+    }
     ReaderScreen #progress-bar {
         height: 3;
     }
@@ -75,26 +81,31 @@ class ReaderScreen(RSVPBaseScreen):
     """
 
     BINDINGS = [
-        Binding("space", "toggle_play", "Play/Pause"),
-        Binding("n", "next_figure", "Next Fig"),
-        Binding("shift+n", "prev_figure", "Prev Fig"),
-        Binding("ctrl+g", "open_picker", "Picker"),
-        Binding("ctrl+p", "open_palette", "Palette"),
-        Binding("left", "prev_word", "Prev"),
-        Binding("right", "next_word", "Next"),
-        Binding("up", "increase_speed", "Faster"),
-        Binding("down", "decrease_speed", "Slower"),
-        Binding("home", "jump_start", "Start"),
-        Binding("end", "jump_end", "End"),
-        Binding("f", "toggle_focus", "Focus"),
-        Binding("1", "figure_1", "Word"),
-        Binding("2", "figure_2", "Chunk"),
-        Binding("3", "figure_3", "Line"),
-        Binding("4", "figure_4", "Bionic"),
-        Binding("5", "figure_5", "Spritz"),
-        Binding("6", "figure_6", "Pacer"),
-        Binding("7", "figure_7", "Mini"),
-        Binding("8", "figure_8", "Stats"),
+        Binding("space", "app.toggle_play", "Play/Pause"),
+        Binding("n", "app.next_figure", "Next Fig"),
+        Binding("shift+n", "app.prev_figure", "Prev Fig"),
+        Binding("ctrl+g", "app.open_picker", "Picker"),
+        Binding("ctrl+p", "app.open_palette", "Palette"),
+        Binding("ctrl+o", "app.open_file_explorer", "Open"),
+        Binding("left", "app.prev_word", "Prev"),
+        Binding("right", "app.next_word", "Next"),
+        Binding("up", "app.increase_speed", "Faster"),
+        Binding("down", "app.decrease_speed", "Slower"),
+        Binding("home", "app.jump_start", "Start"),
+        Binding("end", "app.jump_end", "End"),
+        Binding("f", "app.toggle_focus", "Focus"),
+        Binding("1", "app.figure_1", "Word"),
+        Binding("2", "app.figure_2", "Chunk"),
+        Binding("3", "app.figure_3", "Line"),
+        Binding("4", "app.figure_4", "Bionic"),
+        Binding("5", "app.figure_5", "Spritz"),
+        Binding("6", "app.figure_6", "Pacer"),
+        Binding("7", "app.figure_7", "Mini"),
+        Binding("8", "app.figure_8", "Stats"),
+        # Navigation bindings
+        Binding("[", "app.prev_chapter", "Prev Ch"),
+        Binding("]", "app.next_chapter", "Next Ch"),
+        Binding("ctrl+n", "app.toggle_navigation", "Nav"),
     ]
 
     focus_mode: reactive[bool] = reactive(False)
@@ -109,9 +120,11 @@ class ReaderScreen(RSVPBaseScreen):
         super().__init__(config=config)
         self._book = book
         self._words: Tuple[str, ...] = tuple(words)
+        self._chapters = book.chapters
         self._figure: Optional[Figure] = None
         self._progress: Optional[ProgressBar] = None
         self._note_panel: Optional[NotePanel] = None
+        self._nav_panel: Optional[NavigationPanel] = None
         # Where the user is. Updated by the figure's reactive
         # ``word_index`` observer; we mirror it for transport
         # actions (next/prev) that the figure also exposes.
@@ -131,6 +144,13 @@ class ReaderScreen(RSVPBaseScreen):
                 on_note_added=self._on_note_added,
                 id="note-panel",
             )
+            # Navigation panel (shown based on config)
+            if self.config.show_navigation_panel:
+                yield NavigationPanel(
+                    self._book,
+                    page_size=self.config.page_size,
+                    id="nav-panel",
+                )
         yield Static("", id="status-bar")
         yield Footer()
 
@@ -145,6 +165,12 @@ class ReaderScreen(RSVPBaseScreen):
 
         self._note_panel = self.query_one("#note-panel", NotePanel)
         self._note_panel.set_position(self._book.id, self._book.current_word_index)
+
+        # Get navigation panel if it exists
+        try:
+            self._nav_panel = self.query_one("#nav-panel", NavigationPanel)
+        except NoMatches:
+            self._nav_panel = None
 
         # Mount the figure defined by the config. If the config
         # points at a figure that doesn't exist (e.g. user edited
@@ -244,6 +270,8 @@ class ReaderScreen(RSVPBaseScreen):
             self._progress.update_progress(index, len(self._words))
         if self._note_panel is not None:
             self._note_panel.set_position(self._book.id, index)
+        if self._nav_panel is not None:
+            self._nav_panel.update_position(index)
         self.post_message(FigureStateAdvanced(index=index, book_id=self._book.id))
 
     def _on_completed(self) -> None:
@@ -338,6 +366,39 @@ class ReaderScreen(RSVPBaseScreen):
         else:
             self.remove_class("focus-mode")
 
+    def action_prev_chapter(self) -> None:
+        """[: navigate to the previous chapter."""
+        self._navigate_chapter(-1)
+
+    def action_next_chapter(self) -> None:
+        """]: navigate to the next chapter."""
+        self._navigate_chapter(1)
+
+    def action_toggle_navigation(self) -> None:
+        """Ctrl+N: toggle the navigation panel visibility."""
+        if self._nav_panel is not None:
+            if self._nav_panel.display:
+                self._nav_panel.hide()
+            else:
+                self._nav_panel.show()
+
+    def _navigate_chapter(self, delta: int) -> None:
+        """Navigate by delta chapters (negative = prev, positive = next)."""
+        if self._nav_panel is None or not self._chapters:
+            return
+        current = self._book.current_chapter_index
+        new_index = current + delta
+        if 0 <= new_index < len(self._chapters):
+            self._nav_panel.jump_to_chapter(new_index)
+
+    def on_navigation_jump(self, message: NavigationJump) -> None:
+        """Handle NavigationJump from the nav panel."""
+        if self._figure is not None:
+            self._figure.jump_to(message.word_index)
+        # Update book chapter index
+        if self._nav_panel is not None:
+            self._book.current_chapter_index = message.chapter_index
+
     def action_next_figure(self) -> None:
         """N: cycle to the next figure in the registry."""
         registry = default_registry()
@@ -363,6 +424,44 @@ class ReaderScreen(RSVPBaseScreen):
             CommandPaletteScreen(),
             self._on_palette_dismissed,
         )
+
+    def _open_file_explorer(self) -> None:
+        """Ctrl+O: open the file explorer to select a file."""
+        self.app.push_screen(
+            FileExplorerScreen(),
+            self._on_file_selected,
+        )
+
+    def _on_file_selected(self, path: Optional[str]) -> None:
+        """Handle file selection from the explorer."""
+        if not path:
+            return
+        from pathlib import Path
+
+        # Import and open the file via library manager
+        try:
+            library_manager = self.app.library_manager  # type: ignore[attr-defined]
+            book = library_manager.import_book(Path(path))
+            if book:
+                # Get words and push reader
+                from ..managers.config_manager import ConfigManager
+
+                config = ConfigManager().load()
+                cache_dir = config.cache_dir / f"{book.id}.json"
+                if cache_dir.exists():
+                    import json
+
+                    words_data = json.loads(cache_dir.read_text(encoding="utf-8"))
+                    words = words_data.get("words", [])
+                else:
+                    words = []
+                # Pop current reader and push new one
+                self.app.pop_screen()
+                self.app.push_screen(
+                    type(self)(book, words, config),
+                )
+        except Exception as e:
+            self.app.notify(f"Error opening file: {e}", severity="error")
 
     def _on_picker_dismissed(self, fig_id: Optional[str]) -> None:
         """Apply the picker choice, if any."""
@@ -391,6 +490,20 @@ class ReaderScreen(RSVPBaseScreen):
             self.action_decrease_speed()
         elif command_id == "toggle_focus":
             self.action_toggle_focus()
+        elif command_id == "open_file":
+            self._open_file_explorer()
+        elif command_id == "next_chapter":
+            self.action_next_chapter()
+        elif command_id == "prev_chapter":
+            self.action_prev_chapter()
+        elif command_id == "toggle_navigation":
+            self.action_toggle_navigation()
+        elif command_id == "go_to_chapter":
+            # TODO: Show chapter picker overlay
+            self.app.notify("Use [ and ] keys to navigate chapters")
+        elif command_id == "go_to_page":
+            # TODO: Show page input
+            self.app.notify("Use page navigation in the panel")
         elif command_id.startswith("wpm_"):
             try:
                 wpm = int(command_id.split("_", 1)[1])

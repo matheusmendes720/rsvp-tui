@@ -13,6 +13,7 @@ keybindings, search) without re-implementing the table widget.
 
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 from textual.app import ComposeResult
@@ -24,6 +25,8 @@ from ..widgets import LibraryView
 from .base import RSVPBaseScreen
 from .messages import BookOpened
 from .settings_screen import SettingsScreen
+
+log = logging.getLogger(__name__)
 
 
 class LibraryScreen(RSVPBaseScreen):
@@ -42,8 +45,9 @@ class LibraryScreen(RSVPBaseScreen):
     """
 
     BINDINGS = [
-        Binding("ctrl+r", "refresh", "Refresh"),
-        Binding("ctrl+s", "open_settings", "Settings"),
+        Binding("ctrl+r", "app.refresh", "Refresh"),
+        Binding("ctrl+s", "app.open_settings", "Settings"),
+        Binding("ctrl+o", "app.open_file_explorer", "Open"),
     ]
 
     def __init__(self, config: Optional[Config] = None) -> None:
@@ -69,6 +73,7 @@ class LibraryScreen(RSVPBaseScreen):
 
     def _on_book_selected(self, book: Book) -> None:
         """Forward book selection to the app via a message."""
+        log.info("LibraryScreen: book selected id=%s title=%r", book.id, book.title)
         self.post_message(BookOpened(book_id=book.id))
 
     def _on_book_deleted(self, book_id: str) -> None:
@@ -76,6 +81,7 @@ class LibraryScreen(RSVPBaseScreen):
         if self._library_view is not None:
             self._library_view.load_books()
         self.app.notify("Book deleted")
+        log.info("LibraryScreen: book deleted id=%s", book_id)
 
     # ---- Actions ---------------------------------------------------------
 
@@ -84,10 +90,35 @@ class LibraryScreen(RSVPBaseScreen):
         if self._library_view is not None:
             self._library_view.load_books()
             self.app.notify("Library refreshed")
+            log.info("LibraryScreen: library refreshed")
 
     def action_open_settings(self) -> None:
         """Push the modal SettingsScreen (Ctrl+S)."""
+        log.info("LibraryScreen: opening settings")
         self.app.push_screen(SettingsScreen(config=self.config))
+
+    def action_open_file(self) -> None:
+        """Open file explorer modal (Ctrl+O)."""
+        from .file_explorer import FileExplorerScreen
+
+        self.app.push_screen(
+            FileExplorerScreen(),
+            self._on_file_selected_path,
+        )
+
+    def _on_file_selected_path(self, path: Optional[str]) -> None:
+        """Handle file selection from the explorer."""
+        if not path:
+            return
+        from pathlib import Path
+
+        try:
+            library_manager = self.app.library_manager  # type: ignore[attr-defined]
+            book = library_manager.import_book(Path(path))
+            if book:
+                self.post_message(BookOpened(book_id=book.id))
+        except Exception as e:
+            self.app.notify(f"Error: {e}", severity="error")
 
 
 __all__ = ["LibraryScreen"]

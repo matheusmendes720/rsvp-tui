@@ -12,6 +12,7 @@ the picker survives a figure swap (no parent state pollution).
 
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 from textual.app import ComposeResult
@@ -22,6 +23,8 @@ from textual.widgets import Label, ListItem, ListView, Static
 
 from ..figures import default_registry
 from .base import RSVPBaseScreen
+
+log = logging.getLogger(__name__)
 
 
 class FigurePickerScreen(ModalScreen[Optional[str]]):
@@ -107,10 +110,15 @@ class FigurePickerScreen(ModalScreen[Optional[str]]):
         """Resolve the chosen list-item id to a figure id and dismiss."""
         item_id = event.item.id or ""
         if item_id.startswith("fig-"):
-            self.dismiss(item_id[len("fig-"):])
+            fig_id = item_id[len("fig-") :]
+            log.info("FigurePicker: selected figure_id=%s", fig_id)
+            self.dismiss(fig_id)
+        else:
+            log.debug("FigurePicker: no figure matched item_id=%r", item_id)
 
     def action_dismiss_picker(self) -> None:
         """Escape: dismiss with no result."""
+        log.debug("FigurePicker: dismissed (escape)")
         self.dismiss(None)
 
 

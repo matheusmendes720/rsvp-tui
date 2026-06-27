@@ -70,7 +70,7 @@ class ConfigChanged(Message):
     flush the in-memory config to disk via ``ConfigManager.update``.
     """
 
-    keys: tuple = ()
+    keys: tuple[str, ...] = ()
 
 
 @dataclass
@@ -84,10 +84,48 @@ class BookOpened(Message):
     book_id: str = ""
 
 
+@dataclass
+class NavigationJump(Message):
+    """User triggered a chapter/page navigation jump.
+
+    Carries the target word index and optional chapter index.
+    Used by the NavigationPanel and chapter picker to communicate
+    jumps to the ReaderScreen.
+    """
+
+    word_index: int = 0
+    chapter_index: int = 0
+
+
+@dataclass
+class ChapterChanged(Message):
+    """User navigated to a different chapter.
+
+    Emitted when the user explicitly changes chapters via
+    navigation controls. The app uses this to persist progress.
+    """
+
+    chapter_index: int = 0
+    book_id: str = ""
+
+
+@dataclass
+class FileOpened(Message):
+    """User selected a file via the file explorer.
+
+    Carries the book id after the file was imported.
+    """
+
+    book_id: str = ""
+
+
 __all__ = [
     "FigureChanged",
     "FigureStateAdvanced",
     "FigureCompleted",
     "ConfigChanged",
     "BookOpened",
+    "NavigationJump",
+    "ChapterChanged",
+    "FileOpened",
 ]

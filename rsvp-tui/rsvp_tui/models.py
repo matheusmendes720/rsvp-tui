@@ -8,10 +8,10 @@ from enum import Enum
 import json
 
 
-# v2 schema marker. Kept as a module constant so tests and the
+# v3 schema marker. Kept as a module constant so tests and the
 # ConfigManager can import it without a circular dependency on
 # managers.config_manager.
-CURRENT_SCHEMA_VERSION = 2
+CURRENT_SCHEMA_VERSION = 3
 
 
 class FileType(str, Enum):
@@ -272,6 +272,12 @@ class Config:
     figure_id: str = "word"
     figure_params: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     keybindings: Dict[str, str] = field(default_factory=dict)
+
+    # --- v3 fields (added by migration) ---
+
+    page_size: int = 500  # words per "page" for pagination
+    show_navigation_panel: bool = True  # show chapter/page navigation in reader
+    show_note_panel: bool = True  # show note panel in reader
 
     # --- Storage paths ---
 

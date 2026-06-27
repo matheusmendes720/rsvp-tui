@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 
 # Bump CURRENT_SCHEMA when adding new fields. Add a migration entry in
 # MIGRATIONS for every old version that should still be readable.
-CURRENT_SCHEMA: int = 2
+CURRENT_SCHEMA: int = 3
 
 
 # ---- Migrations -------------------------------------------------------------
@@ -56,9 +56,24 @@ def _migrate_1_to_2(data: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
+def _migrate_2_to_3(data: Dict[str, Any]) -> Dict[str, Any]:
+    """v2 -> v3: add navigation panel settings.
+
+    v3 adds page_size for pagination and visibility flags for
+    the navigation panel and note panel.
+    """
+    data = dict(data)  # don't mutate the caller's dict
+    data["schema_version"] = 3
+    data.setdefault("page_size", 500)
+    data.setdefault("show_navigation_panel", True)
+    data.setdefault("show_note_panel", True)
+    return data
+
+
 # Map of old version -> migration function. Keys are the *old* version.
 MIGRATIONS: Dict[int, Any] = {
     1: _migrate_1_to_2,
+    2: _migrate_2_to_3,
 }
 
 
@@ -104,8 +119,6 @@ class ConfigManager:
         while version < CURRENT_SCHEMA:
             migrator = MIGRATIONS.get(version)
             if migrator is None:
-                # No known path forward — bail to defaults rather than
-                # silently lose user data.
                 log.warning(
                     "no migration from schema v%s to v%s; using defaults",
                     version,
@@ -113,7 +126,7 @@ class ConfigManager:
                 )
                 return self._default_payload()
             data = migrator(data)
-            version = int(data.get("schema_version", version + 1))
+            version += 1  # Increment after each successful migration
         return data
 
     def _build_config(self, data: Dict[str, Any]) -> Config:

@@ -37,9 +37,10 @@ if TYPE_CHECKING:  # pragma: no cover - imported only by static checkers
     from .library_view import LibraryView
     from .note_panel import NotePanel
     from .progress_bar import ProgressBar
+    from .navigation_panel import NavigationPanel
 
 # Names that are NOT deprecated — always safe to import.
-_NON_DEPRECATED = frozenset({"LibraryView", "NotePanel", "ProgressBar"})
+_NON_DEPRECATED = frozenset({"LibraryView", "NotePanel", "ProgressBar", "NavigationPanel"})
 
 # Cache resolved attributes on the module to avoid re-resolving
 # on every access (and re-warning on the deprecated ones).
@@ -93,8 +94,14 @@ def __getattr__(name: str):
         from . import library_view as _lv
         from . import note_panel as _np
         from . import progress_bar as _pb
+        from . import navigation_panel as _navp
 
-        mapping = {"LibraryView": _lv.LibraryView, "NotePanel": _np.NotePanel, "ProgressBar": _pb.ProgressBar}
+        mapping = {
+            "LibraryView": _lv.LibraryView,
+            "NotePanel": _np.NotePanel,
+            "ProgressBar": _pb.ProgressBar,
+            "NavigationPanel": _navp.NavigationPanel,
+        }
         cls = mapping.get(name)
         if cls is None:
             raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
@@ -114,5 +121,6 @@ __all__ = [
     "LibraryView",
     "NotePanel",
     "ProgressBar",
+    "NavigationPanel",
     "SettingsPanel",  # deprecated
 ]

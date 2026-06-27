@@ -37,6 +37,7 @@ from textual.reactive import reactive
 from textual.widgets import Static
 
 from .. import calculate_word_delay
+from ..logging_ import telemetry
 
 log = logging.getLogger(__name__)
 
@@ -217,10 +218,12 @@ class Figure(Static):
     def start(self) -> None:
         if not self.is_playing and self._words:
             self.is_playing = True
+            log.debug("Figure %s: started wpm=%d word_index=%d", self.id, self.wpm, self.word_index)
             self._schedule_next()
 
     def pause(self) -> None:
         self.is_playing = False
+        log.debug("Figure %s: paused at word_index=%d", self.id, self.word_index)
         self._cancel_timer()
 
     def toggle(self) -> None:
@@ -231,26 +234,36 @@ class Figure(Static):
 
     def stop(self) -> None:
         self.pause()
+        log.info("Figure %s: stopped", self.id)
         self.word_index = 0
 
     # ---- Navigation -----------------------------------------------------
 
     def next_word(self) -> None:
         if self.word_index < len(self._words) - 1:
+            prev = self.word_index
             self.word_index += 1
+            telemetry.word_advance(figure_id=self.id, word=self._current_word(), word_index=self.word_index, wpm=self.wpm)
+            log.debug("Figure %s: next_word %d -> %d", self.id, prev, self.word_index)
 
     def prev_word(self) -> None:
         if self.word_index > 0:
+            prev = self.word_index
             self.word_index -= 1
+            log.debug("Figure %s: prev_word %d -> %d", self.id, prev, self.word_index)
 
     def jump_to(self, index: int) -> None:
         if self._words:
+            prev = self.word_index
             self.word_index = max(0, min(int(index), len(self._words) - 1))
+            log.info("Figure %s: jump_to %d (was %d)", self.id, self.word_index, prev)
 
     def jump_to_percentage(self, percentage: float) -> None:
         if self._words:
+            prev_pct = (self.word_index / len(self._words)) * 100
             index = int((percentage / 100.0) * len(self._words))
             self.jump_to(index)
+            log.info("Figure %s: jump_to_percentage %.1f%% (was %.1f%%)", self.id, percentage, prev_pct)
 
     # ---- Speed ----------------------------------------------------------
 
@@ -259,7 +272,11 @@ class Figure(Static):
         # produce an infinite delay in _schedule_next and freeze
         # the timer; the lower bound is 50 to leave room for
         # extremely slow reading practice.
+        prev = self.wpm
         self.wpm = max(50, min(1500, int(wpm)))
+        if prev != self.wpm:
+            telemetry.wpm_change(new_wpm=self.wpm, source="figure")
+            log.info("Figure %s: wpm changed %d -> %d", self.id, prev, self.wpm)
 
     def increase_speed(self, amount: int = 25) -> None:
         self.set_wpm(self.wpm + amount)
@@ -280,6 +297,8 @@ class Figure(Static):
                 _notify_callback_error(self, exc, "on_word_change")
         if self._words and index >= len(self._words):
             self.is_playing = False
+            log.info("Figure %s: reading complete at word_index=%d", self.id, index)
+            telemetry.reading_complete(figure_id=self.id, final_index=index, total_words=len(self._words))
             if self._on_complete is not None:
                 try:
                     self._on_complete()

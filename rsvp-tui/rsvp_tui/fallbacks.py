@@ -1,6 +1,7 @@
 """Pure Python fallback implementations when Rust is not available."""
 
 import re
+from pathlib import Path
 from typing import List, Tuple, Dict
 from dataclasses import dataclass
 
@@ -186,13 +187,152 @@ def clean_markdown_line(line: str) -> str:
 
 
 def parse_epub_bytes(data: bytes) -> ParseResult:
-    """Parse EPUB - requires external library."""
-    raise NotImplementedError("EPUB parsing requires Rust backend or ebooklib")
+    """Parse EPUB using ebooklib."""
+    try:
+        import ebooklib
+        from ebooklib import epub
+    except ImportError:
+        raise NotImplementedError("EPUB parsing requires ebooklib: pip install ebooklib")
+
+    from io import BytesIO
+    try:
+        book = epub.read_epub(BytesIO(data))
+    except Exception as e:
+        return ParseResult(title="EPUB Error", author="Unknown", chapters=[], word_count=0)
+
+    return _parse_epub_book(book)
+
+
+def parse_epub_path(file_path: Path) -> ParseResult:
+    """Parse EPUB from file path."""
+    try:
+        import ebooklib
+        from ebooklib import epub
+    except ImportError:
+        raise NotImplementedError("EPUB parsing requires ebooklib: pip install ebooklib")
+
+    try:
+        book = epub.read_epub(str(file_path))
+    except Exception as e:
+        return ParseResult(title="EPUB Error", author="Unknown", chapters=[], word_count=0)
+
+    return _parse_epub_book(book)
+
+
+def _parse_epub_book(book) -> ParseResult:
+    """Internal EPUB parsing from open book."""
+    # Extract metadata
+    title = "Unknown"
+    author = "Unknown"
+    try:
+        meta = book.get_metadata()
+        if meta:
+            title = meta[0][0].value if meta[0] else "Unknown"
+        for item in book.get_metadata():
+            if item[0] == "creator":
+                author = item[1][0].value if item[1] else "Unknown"
+    except:
+        pass
+
+    # Extract text from all documents
+    all_text = []
+    for item in book.get_items():
+        if item.get_type() == 9:  # DOCUMENT
+            try:
+                content = item.get_content()
+                if content:
+                    import re
+                    text = re.sub(r'<[^>]+>', ' ', str(content))
+                    text = re.sub(r'\s+', ' ', text).strip()
+                    if text:
+                        all_text.append(text)
+            except:
+                pass
+
+    full_text = ' '.join(all_text)
+    words = full_text.split()
+
+    chapters = []
+    if words:
+        chapters.append(Chapter(
+            title=title,
+            start_word_index=0,
+            end_word_index=len(words) - 1,
+        ))
+
+    return ParseResult(
+        title=title,
+        author=author,
+        chapters=chapters,
+        word_count=len(words),
+    )
 
 
 def parse_pdf_bytes(data: bytes) -> ParseResult:
-    """Parse PDF - requires external library."""
-    raise NotImplementedError("PDF parsing requires Rust backend or pymupdf")
+    """Parse PDF using pymupdf (fitz) - direct file path."""
+    try:
+        import fitz
+    except ImportError:
+        raise NotImplementedError("PDF parsing requires pymupdf: pip install pymupdf")
+
+    from io import BytesIO
+    doc = fitz.open(stream=BytesIO(data), filetype="pdf")
+    return _parse_pdf_doc(doc)
+
+
+def parse_pdf_path(file_path: Path) -> ParseResult:
+    """Parse PDF from file path - faster than bytes."""
+    try:
+        import fitz
+    except ImportError:
+        raise NotImplementedError("PDF parsing requires pymupdf: pip install pymupdf")
+
+    try:
+        doc = fitz.open(str(file_path))
+    except Exception as e:
+        return ParseResult(title="PDF Error", author="Unknown", chapters=[], word_count=0)
+
+    return _parse_pdf_doc(doc)
+
+
+def _parse_pdf_doc(doc) -> ParseResult:
+    """Internal PDF parsing from open document."""
+    import fitz
+
+    # Extract metadata
+    title = doc.metadata.get("title", "") or "Unknown"
+    if not title or title == "Unknown":
+        title = "PDF Document"
+    author = doc.metadata.get("author", "") or "Unknown"
+
+    # Extract text from all pages - limit for speed
+    all_text = []
+    max_pages = min(len(doc), 500)  # Limit pages for performance
+    for page_num in range(max_pages):
+        page = doc[page_num]
+        text = page.get_text("text")
+        if text:
+            all_text.append(text.strip())
+
+    doc.close()
+
+    full_text = ' '.join(all_text)
+    words = full_text.split()
+
+    chapters = []
+    if words:
+        chapters.append(Chapter(
+            title=title,
+            start_word_index=0,
+            end_word_index=len(words) - 1,
+        ))
+
+    return ParseResult(
+        title=title,
+        author=author,
+        chapters=chapters,
+        word_count=len(words),
+    )
 
 
 def calculate_orp_index(word: str) -> int:

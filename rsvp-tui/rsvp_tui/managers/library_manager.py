@@ -1,5 +1,6 @@
 """Library management for books."""
 
+import logging
 import sqlite3
 import json
 import hashlib
@@ -10,7 +11,10 @@ from datetime import datetime
 import uuid
 
 from ..models import Book, Chapter, FileType
-from .. import parse_markdown, parse_plain_text, parse_epub_bytes, tokenize_text
+from .. import parse_markdown, parse_plain_text, parse_epub_path, parse_pdf_path, tokenize_text
+from ..logging_ import telemetry
+
+log = logging.getLogger(__name__)
 
 
 class LibraryManager:
@@ -21,12 +25,17 @@ class LibraryManager:
         if db_path is None:
             config = Config.load()
             db_path = config.library_db_path
-        
+
         self.db_path = db_path
         self.cache_dir = db_path.parent / "cache"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self._init_db()
+        log.info(
+            "LibraryManager init: db=%s cache=%s",
+            self.db_path,
+            self.cache_dir,
+        )
     
     def _init_db(self):
         """Initialize database schema."""
@@ -94,10 +103,11 @@ class LibraryManager:
             text = content.decode("utf-8", errors="replace")
             result = parse_plain_text(text)
         elif file_type == FileType.EPUB:
-            result = parse_epub_bytes(content)
-        else:
-            # PDF - fallback to error for now
-            raise NotImplementedError("PDF support requires additional dependencies")
+            # For EPUB, use path directly for better performance
+            result = parse_epub_path(file_path)
+        elif file_type == FileType.PDF:
+            # For PDF, use path directly for faster parsing
+            result = parse_pdf_path(file_path)
         
         # Generate unique ID
         book_id = f"book_{uuid.uuid4().hex[:16]}"
@@ -129,10 +139,24 @@ class LibraryManager:
         with open(cache_path, "w") as f:
             json.dump(words, f)
         book.cache_file_path = cache_path
-        
+
         # Save to database
         self._save_book_to_db(book)
-        
+
+        log.info(
+            "book.import: id=%s title=%r file_type=%s word_count=%d",
+            book_id,
+            book.title,
+            file_type.value,
+            len(words),
+        )
+        telemetry.book_import(
+            book_id=book_id,
+            title=book.title,
+            file_type=file_type.value,
+            word_count=len(words),
+        )
+
         return book
     
     def _save_book_to_db(self, book: Book):
@@ -224,10 +248,10 @@ class LibraryManager:
             book = self.get_book(book_id)
             if book:
                 book.update_progress(word_index)
-                
+
                 conn.execute(
-                    """UPDATE books 
-                       SET current_word_index = ?, 
+                    """UPDATE books
+                       SET current_word_index = ?,
                            current_chapter_index = ?,
                            last_read_date = ?,
                            data = ?
@@ -241,6 +265,12 @@ class LibraryManager:
                     )
                 )
                 conn.commit()
+                log.debug(
+                    "progress.update: book_id=%s word_index=%d/%d",
+                    book_id,
+                    word_index,
+                    book.word_count,
+                )
     
     def delete_book(self, book_id: str):
         """Remove book from library."""
@@ -250,27 +280,38 @@ class LibraryManager:
                 "SELECT cache_file_path FROM books WHERE id = ?",
                 (book_id,)
             ).fetchone()
-            
+
             # Delete from database
             conn.execute("DELETE FROM books WHERE id = ?", (book_id,))
             conn.commit()
-            
+
             # Delete cache file
             if row and row[0]:
                 cache_path = Path(row[0])
                 if cache_path.exists():
                     cache_path.unlink()
+
+        log.info("book.delete: book_id=%s", book_id)
     
     def load_words(self, book_id: str) -> List[str]:
         """Load cached words for a book."""
         book = self.get_book(book_id)
         if not book or not book.cache_file_path:
+            log.warning("load_words: cache miss for book_id=%s", book_id)
             return []
-        
+
         try:
             with open(book.cache_file_path) as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
+                words = json.load(f)
+            log.debug("load_words: book_id=%s count=%d", book_id, len(words))
+            return words
+        except (FileNotFoundError, json.JSONDecodeError) as exc:
+            log.error(
+                "load_words: failed for book_id=%s: %s",
+                book_id,
+                exc,
+                exc_info=True,
+            )
             return []
     
     def get_statistics(self) -> Dict[str, Any]:

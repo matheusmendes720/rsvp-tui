@@ -35,7 +35,9 @@ except ImportError:
     from .fallbacks import (
         tokenize_text,
         parse_pdf_bytes,
+        parse_pdf_path,
         parse_epub_bytes,
+        parse_epub_path,
         parse_markdown,
         parse_plain_text,
         calculate_orp_index,
@@ -47,7 +49,7 @@ except ImportError:
         identify_difficult_words,
         generate_reading_heatmap_data,
     )
-    # Create placeholder classes
+    # Create placeholder classes (only when Rust not available)
     class ParseResult:
         def __init__(self, title, author, plain_text):
             self.title = title
@@ -63,7 +65,7 @@ except ImportError:
             self.start_word_index = start_word_index
             self.end_word_index = end_word_index
             self.content = ""
-        
+
         def word_count(self):
             return self.end_word_index - self.start_word_index
 
@@ -80,11 +82,16 @@ except ImportError:
             self.language = language
             self.description = description
 
+# Aliases for path-based parsing (not in rsvp_core, always available from fallbacks)
+from .fallbacks import parse_epub_path, parse_pdf_path  # noqa: E402
+
 __all__ = [
     "RUST_AVAILABLE",
     "tokenize_text",
     "parse_pdf_bytes",
+    "parse_pdf_path",
     "parse_epub_bytes",
+    "parse_epub_path",
     "parse_markdown",
     "parse_plain_text",
     "calculate_orp_index",

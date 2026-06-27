@@ -29,8 +29,9 @@ class ProgressBar(Static):
         current_word: int = 0,
         total_words: int = 0,
         wpm: int = 300,
+        id: str | None = None,
     ):
-        super().__init__()
+        super().__init__(id=id)
         self.current_word = current_word
         self.total_words = total_words
         self.wpm = wpm

@@ -14,6 +14,7 @@ dispatcher on the caller side decides what to do.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -22,6 +23,8 @@ from textual.binding import Binding
 from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Input, Label, ListItem, ListView, Static
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -61,6 +64,14 @@ DEFAULT_COMMANDS: List[PaletteCommand] = [
     PaletteCommand("toggle_focus", "Toggle Focus Mode", "f"),
     PaletteCommand("add_note", "Add Note at Position", "n"),
     PaletteCommand("show_help", "Show Help", "?"),
+    # Navigation commands
+    PaletteCommand("open_file", "Open File...", "ctrl+o"),
+    PaletteCommand("next_chapter", "Next Chapter", "]"),
+    PaletteCommand("prev_chapter", "Previous Chapter", "["),
+    PaletteCommand("go_to_chapter", "Go to Chapter...", "g c"),
+    PaletteCommand("go_to_page", "Go to Page...", "g p"),
+    PaletteCommand("toggle_navigation", "Toggle Navigation Panel", "ctrl+n"),
+    PaletteCommand("toggle_note_panel", "Toggle Note Panel", "ctrl+b"),
 ]
 
 
@@ -149,12 +160,14 @@ class CommandPaletteScreen(ModalScreen[Optional[str]]):
 
     def on_mount(self) -> None:
         """Render initial command list and focus the input."""
+        log.debug("CommandPalette: opened (on_mount)")
         self._refresh_list("")
         self.query_one("#palette-input", Input).focus()
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Filter the list as the user types."""
         if event.input.id == "palette-input":
+            log.debug("CommandPalette: input changed query=%r", event.value)
             self._refresh_list(event.value)
 
     def _refresh_list(self, query: str) -> None:
@@ -177,7 +190,11 @@ class CommandPaletteScreen(ModalScreen[Optional[str]]):
         """Return the chosen command id."""
         item_id = event.item.id or ""
         if item_id.startswith("cmd-"):
-            self.dismiss(item_id[len("cmd-"):])
+            cmd_id = item_id[len("cmd-") :]
+            log.info("CommandPalette: command selected id=%s", cmd_id)
+            self.dismiss(cmd_id)
+        else:
+            log.debug("CommandPalette: no command matched item_id=%r", item_id)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Enter: pick the first remaining item (if any)."""
@@ -186,12 +203,16 @@ class CommandPaletteScreen(ModalScreen[Optional[str]]):
             first = lv.children[0]
             item_id = first.id or ""
             if item_id.startswith("cmd-"):
-                self.dismiss(item_id[len("cmd-"):])
+                cmd_id = item_id[len("cmd-") :]
+                log.info("CommandPalette: submitted first match id=%s", cmd_id)
+                self.dismiss(cmd_id)
                 return
+        log.debug("CommandPalette: submitted with no matches")
         self.dismiss(None)
 
     def action_dismiss_palette(self) -> None:
         """Escape: dismiss without selecting."""
+        log.debug("CommandPalette: dismissed (escape)")
         self.dismiss(None)
 
 

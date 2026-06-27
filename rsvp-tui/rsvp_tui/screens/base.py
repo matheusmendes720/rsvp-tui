@@ -9,6 +9,7 @@ bindings and CSS.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Optional
 
@@ -18,6 +19,8 @@ from textual.screen import Screen
 from ..figures import default_registry
 from ..keybindings import resolve
 from ..models import Config
+
+log = logging.getLogger(__name__)
 
 
 def new_ui_enabled() -> bool:
@@ -53,6 +56,7 @@ class RSVPBaseScreen(Screen):
     def __init__(self, config: Optional[Config] = None) -> None:
         super().__init__()
         self._config = config
+        log.debug("screen.init: %s", type(self).__name__)
 
     @property
     def config(self) -> Config:

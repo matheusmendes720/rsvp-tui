@@ -22,6 +22,7 @@ there's no separate save return value.
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 from textual.app import ComposeResult
@@ -45,7 +46,10 @@ from ..figures import default_registry
 from ..managers.config_manager import ConfigManager
 from ..models import Config
 from ..themes import all_themes
+from ..logging_ import telemetry
 from .messages import ConfigChanged
+
+log = logging.getLogger(__name__)
 
 
 # ---- Field helpers ---------------------------------------------------------
@@ -92,6 +96,13 @@ DISPLAY_FIELDS: List[Dict[str, Any]] = [
         "Default Figure",
         [(f.id, f.name) for f in default_registry().all()],
     ),
+]
+
+# Tab 4 — Navigation (v3 settings)
+NAVIGATION_FIELDS: List[Dict[str, Any]] = [
+    _int_field("page_size", "Page Size (words)", 100, 2000),
+    _bool_field("show_navigation_panel", "Show Navigation Panel"),
+    _bool_field("show_note_panel", "Show Note Panel"),
 ]
 
 # Tab 3 — Timing.
@@ -236,6 +247,10 @@ class SettingsScreen(ModalScreen[None]):
                     yield VerticalScroll(
                         *self._build_fields(TIMING_FIELDS)
                     )
+                with TabPane("Navigation", id="tab-navigation"):
+                    yield VerticalScroll(
+                        *self._build_fields(NAVIGATION_FIELDS)
+                    )
                 with TabPane("Input", id="tab-input"):
                     yield Static(
                         "Key remapping is not yet exposed in the UI.\n"
@@ -368,6 +383,11 @@ class SettingsScreen(ModalScreen[None]):
 
         # Persist + update in-memory config.
         if patch:
+            log.info(
+                "SettingsScreen: applying patch keys=%s values=%s",
+                list(patch.keys()),
+                {k: v for k, v in patch.items() if k != "keybindings"},
+            )
             try:
                 self._manager.update(**patch)
             except Exception as exc:
@@ -375,6 +395,13 @@ class SettingsScreen(ModalScreen[None]):
                 return
             for k, v in patch.items():
                 setattr(self._config, k, v)
+            # Emit telemetry for notable changes
+            if "default_wpm" in patch:
+                telemetry.wpm_change(new_wpm=patch["default_wpm"], source="settings")
+            if "figure_id" in patch:
+                telemetry.figure_swap(from_id="unknown", to_id=patch["figure_id"])
+            if "theme" in patch:
+                telemetry.config_change(key="theme", value=patch["theme"])
 
         # Figure params tab.
         self._config.figure_params = dict(self._figure_params)
