@@ -736,34 +736,34 @@ class RSVPTUI(App):
 
     CSS = """
     Screen { align: center middle; }
-    
+
     /* Library Screen */
     #library-title { text-align: center; text-style: bold; padding: 1; }
     #search { margin: 1; }
     #books-table { height: 1fr; margin: 1; }
     #library-buttons { height: auto; align: center middle; padding: 1; }
     #library-buttons Button { margin: 0 1; }
-    
+
     /* Reader Screen */
     #reader-main { width: 3fr; height: 100%; }
     #book-title { text-align: center; text-style: bold; padding: 1; }
     #rsvp-display { height: 2fr; }
     #reader-controls { height: auto; align: center middle; padding: 1; }
     #reader-controls Button { margin: 0 1; }
-    
+
     #notes-panel { width: 1fr; height: 100%; border: solid blue; }
     #notes-title { text-align: center; text-style: bold; padding: 1; }
     #notes-list { padding: 1; }
     #btn-toggle-notes { width: 100%; }
-    
+
     #notes-panel.hidden { display: none; }
-    
+
     /* Focus Mode */
     .focus-mode Header { display: none; }
     .focus-mode Footer { display: none; }
     .focus-mode #reader-controls { display: none; }
     .focus-mode #notes-panel { display: none; }
-    
+
     /* Modals */
     #note-dialog, #import-dialog, #delete-dialog {
         grid-size: 1;
@@ -773,23 +773,23 @@ class RSVPTUI(App):
         border: solid green;
         background: $surface;
     }
-    
+
     #note-title, #import-title, #delete-title {
         text-align: center;
         text-style: bold;
         padding: 1;
     }
-    
+
     #note-context { text-style: italic; color: $text-muted; }
-    
+
     #note-content { height: 10; }
-    
+
     #note-buttons, #import-buttons, #delete-buttons {
         height: auto;
         align: center middle;
         padding: 1;
     }
-    
+
     #note-buttons Button, #import-buttons Button, #delete-buttons Button {
         margin: 0 1;
     }

@@ -64,54 +64,54 @@ class RSVPApp(App):
     Screen {
         align: center middle;
     }
-    
+
     #main-content {
         width: 100%;
         height: 100%;
     }
-    
+
     #reader-container {
         width: 100%;
         height: 100%;
     }
-    
+
     #reader-display {
         height: 3fr;
         content-align: center middle;
     }
-    
+
     #progress-bar {
         height: auto;
         margin: 1;
     }
-    
+
     #controls-bar {
         height: auto;
         content-align: center middle;
         margin: 1;
     }
-    
+
     #library-view {
         width: 100%;
         height: 100%;
     }
-    
+
     .hidden {
         display: none;
     }
-    
+
     .focus-mode #header {
         display: none;
     }
-    
+
     .focus-mode #footer {
         display: none;
     }
-    
+
     .focus-mode #controls-bar {
         display: none;
     }
-    
+
     .focus-mode #note-panel {
         display: none;
     }
