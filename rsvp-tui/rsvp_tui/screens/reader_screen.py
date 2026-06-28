@@ -16,19 +16,18 @@ figure is mounted inside a ``Static(id="figure-host")`` container.
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Tuple
 
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.css.query import NoMatches
 from textual.reactive import reactive
-from textual.widgets import Header, Footer, Static
+from textual.widgets import Footer, Header, Static
 
 from ..figures import Figure, FigureState, default_registry
 from ..logging_ import telemetry
 from ..models import Book, Config
-from ..widgets import NotePanel, NavigationPanel, ProgressBar
+from ..widgets import NavigationPanel, NotePanel, ProgressBar
 from .base import RSVPBaseScreen
 from .command_palette import CommandPaletteScreen
 from .figure_picker import FigurePickerScreen
@@ -115,17 +114,17 @@ class ReaderScreen(RSVPBaseScreen):
     def __init__(
         self,
         book: Book,
-        words: List[str],
-        config: Optional[Config] = None,
+        words: list[str],
+        config: Config | None = None,
     ) -> None:
         super().__init__(config=config)
         self._book = book
-        self._words: Tuple[str, ...] = tuple(words)
+        self._words: tuple[str, ...] = tuple(words)
         self._chapters = book.chapters
-        self._figure: Optional[Figure] = None
-        self._progress: Optional[ProgressBar] = None
-        self._note_panel: Optional[NotePanel] = None
-        self._nav_panel: Optional[NavigationPanel] = None
+        self._figure: Figure | None = None
+        self._progress: ProgressBar | None = None
+        self._note_panel: NotePanel | None = None
+        self._nav_panel: NavigationPanel | None = None
         # Where the user is. Updated by the figure's reactive
         # ``word_index`` observer; we mirror it for transport
         # actions (next/prev) that the figure also exposes.
@@ -448,7 +447,7 @@ class ReaderScreen(RSVPBaseScreen):
             self._on_file_selected,
         )
 
-    def _on_file_selected(self, path: Optional[str]) -> None:
+    def _on_file_selected(self, path: str | None) -> None:
         """Handle file selection from the explorer."""
         if not path:
             return
@@ -479,12 +478,12 @@ class ReaderScreen(RSVPBaseScreen):
         except Exception as e:
             self.app.notify(f"Error opening file: {e}", severity="error")
 
-    def _on_picker_dismissed(self, fig_id: Optional[str]) -> None:
+    def _on_picker_dismissed(self, fig_id: str | None) -> None:
         """Apply the picker choice, if any."""
         if fig_id:
             self._swap_figure(fig_id)
 
-    def _on_palette_dismissed(self, command_id: Optional[str]) -> None:
+    def _on_palette_dismissed(self, command_id: str | None) -> None:
         """Dispatch a palette command."""
         if not command_id:
             return

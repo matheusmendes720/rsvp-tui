@@ -16,8 +16,6 @@ from __future__ import annotations
 
 import warnings
 
-import pytest
-
 from rsvp_tui.models import Config
 from rsvp_tui.screens import SettingsScreen
 from rsvp_tui.screens.messages import ConfigChanged
@@ -27,7 +25,6 @@ from rsvp_tui.screens.settings_screen import (
     TIMING_FIELDS,
     _ConfirmModal,
 )
-
 
 # ---- Field-list shape ----------------------------------------------------
 

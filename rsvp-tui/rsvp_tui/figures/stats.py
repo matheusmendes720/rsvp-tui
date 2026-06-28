@@ -10,7 +10,7 @@ diagnostic while tuning the per-figure params.
 from __future__ import annotations
 
 from collections import deque
-from typing import Any, Deque
+from typing import Any
 
 from rich.align import Align
 from rich.console import Group
@@ -18,7 +18,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from ..themes import get_theme
-from .base import Figure, FigureState
+from .base import Figure
 
 
 class StatsFigure(Figure):
@@ -44,7 +44,7 @@ class StatsFigure(Figure):
 
     def _on_init(self) -> None:
         self._theme = get_theme("dark")
-        self._wpm_history: Deque[int] = deque(maxlen=int(self.get_param("history_size", 60)))
+        self._wpm_history: deque[int] = deque(maxlen=int(self.get_param("history_size", 60)))
 
     def render(self):  # type: ignore[override]
         current = self._current_word()

@@ -9,16 +9,15 @@ runtime via the per-figure params editor.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from rich.align import Align
-from rich.console import Group
 from rich.panel import Panel
 from rich.text import Text
 
 from .. import calculate_orp_index, split_word_for_display
 from ..themes import get_theme
-from .base import Figure, FigureState
+from .base import Figure
 
 
 class ChunkFigure(Figure):
@@ -28,7 +27,7 @@ class ChunkFigure(Figure):
     name = "Word Chunk"
     description = "Show a window of N words, ORP on the first."
     default_keybinding = "2"
-    default_params: Dict[str, Any] = {
+    default_params: dict[str, Any] = {
         "chunk_size": 3,
         "orp_enabled": True,
     }
@@ -58,7 +57,7 @@ class ChunkFigure(Figure):
                 border_style=self._theme.border_idle,
             )
 
-        pieces: List[Text] = []
+        pieces: list[Text] = []
         for i, word in enumerate(chunk):
             text = Text()
             text.append(" " if i > 0 else "")

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -45,7 +45,7 @@ class PaletteCommand:
 
 # Static command list. Adding a new command is a one-line change.
 # Order is the display order when the palette opens.
-DEFAULT_COMMANDS: List[PaletteCommand] = [
+DEFAULT_COMMANDS: list[PaletteCommand] = [
     PaletteCommand("next_figure", "Next Figure", "n"),
     PaletteCommand("prev_figure", "Previous Figure", "shift+n"),
     PaletteCommand("open_picker", "Open Figure Picker", "ctrl+g"),
@@ -147,7 +147,7 @@ class CommandPaletteScreen(ModalScreen[Optional[str]]):
         Binding("escape", "dismiss_palette", "Cancel"),
     ]
 
-    def __init__(self, commands: Optional[List[PaletteCommand]] = None) -> None:
+    def __init__(self, commands: list[PaletteCommand] | None = None) -> None:
         super().__init__()
         self._commands = commands or DEFAULT_COMMANDS
 

@@ -1,11 +1,11 @@
-import pytest
 from rsvp_tui import (
-    tokenize_text,
     calculate_orp_index,
     calculate_word_delay,
-    split_word_for_display,
     estimate_reading_time,
+    split_word_for_display,
+    tokenize_text,
 )
+
 
 def test_tokenization():
     text = "Hello, world! This is a test."
@@ -31,10 +31,10 @@ def test_word_splitting():
 def test_word_delay():
     wpm = 300  # 60000 / 300 = 200ms base delay
     pause_chars = ['.', '!', '?']
-    
+
     # Normal word
     assert calculate_word_delay("word", wpm, 2.0, pause_chars) == 200
-    
+
     # Word with punctuation (2.0x multiplier)
     assert calculate_word_delay("word.", wpm, 2.0, pause_chars) == 400
 
@@ -43,7 +43,7 @@ def test_reading_time_estimation():
     mins, secs = estimate_reading_time(300, 300)
     assert mins == 1
     assert secs == 0
-    
+
     # 450 words at 300 WPM = 1.5 minutes = 1 min 30 sec
     mins, secs = estimate_reading_time(450, 300)
     assert mins == 1

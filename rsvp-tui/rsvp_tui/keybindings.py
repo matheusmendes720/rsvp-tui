@@ -19,13 +19,12 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Dict, Mapping
-
+from collections.abc import Mapping
 
 # Default action -> key string map. These match the existing UX of the
 # legacy app (``space`` for play/pause, ``n`` for next figure, etc.) so
 # users upgrading from 0.1.x keep their muscle memory.
-DEFAULT_BINDINGS: Dict[str, str] = {
+DEFAULT_BINDINGS: dict[str, str] = {
     # Global
     "quit": "q",
     "show_library": "l",
@@ -54,7 +53,7 @@ DEFAULT_BINDINGS: Dict[str, str] = {
 # Human-readable descriptions used in the help screen and command
 # palette. Keep these in sync with ``DEFAULT_BINDINGS`` — when you add
 # a new action, add a description here too.
-BINDING_DESCRIPTIONS: Dict[str, str] = {
+BINDING_DESCRIPTIONS: dict[str, str] = {
     "quit": "Quit",
     "show_library": "Open library",
     "show_settings": "Open settings",
@@ -88,7 +87,7 @@ def resolve(action: str, overrides: Mapping[str, str] | None = None) -> str:
     return DEFAULT_BINDINGS.get(action, "")
 
 
-def merged_bindings(overrides: Mapping[str, str] | None = None) -> Dict[str, str]:
+def merged_bindings(overrides: Mapping[str, str] | None = None) -> dict[str, str]:
     """Return a complete action->key map with overrides applied."""
     merged = dict(DEFAULT_BINDINGS)
     if overrides:

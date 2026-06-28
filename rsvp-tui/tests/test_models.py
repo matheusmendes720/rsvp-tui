@@ -1,10 +1,9 @@
 import json
-from pathlib import Path
 
 import pytest
 
 from rsvp_tui.managers.config_manager import ConfigManager
-from rsvp_tui.models import CURRENT_SCHEMA_VERSION, Book, Chapter, Config, Note
+from rsvp_tui.models import CURRENT_SCHEMA_VERSION, Book, Config, Note
 
 
 def test_book_serialization(sample_book):

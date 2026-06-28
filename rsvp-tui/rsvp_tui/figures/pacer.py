@@ -9,7 +9,7 @@ loses track of overall progress.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from rich.align import Align
 from rich.console import Group
@@ -17,7 +17,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from ..themes import get_theme
-from .base import Figure, FigureState
+from .base import Figure
 
 
 class PacerFigure(Figure):
@@ -27,7 +27,7 @@ class PacerFigure(Figure):
     name = "Pacer"
     description = "Word + horizontal pacer dots showing progress."
     default_keybinding = "6"
-    default_params: Dict[str, Any] = {
+    default_params: dict[str, Any] = {
         "dot_count": 20,
         "fill_char": "●",
         "empty_char": "○",
@@ -63,7 +63,7 @@ class PacerFigure(Figure):
         if self._words:
             ratio = (self.word_index / max(1, len(self._words) - 1))
         filled = int(round(ratio * (dot_count - 1)))
-        dots: List[Text] = []
+        dots: list[Text] = []
         for i in range(dot_count):
             char = fill_char if i <= filled else empty_char
             style = self._theme.orp if i <= filled else self._theme.muted

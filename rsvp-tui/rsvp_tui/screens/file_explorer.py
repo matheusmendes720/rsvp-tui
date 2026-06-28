@@ -63,7 +63,7 @@ class FileExplorerScreen(ModalScreen[Optional[str]]):
 
     def __init__(
         self,
-        initial_path: Optional[Path] = None,
+        initial_path: Path | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -91,7 +91,7 @@ class FileExplorerScreen(ModalScreen[Optional[str]]):
         """Focus the input on mount."""
         self.query_one("#file-input", Input).focus()
 
-    def action_dismiss(self, result: Optional[str] = None) -> None:
+    def action_dismiss(self, result: str | None = None) -> None:
         """Cancel and dismiss."""
         log.debug("FileExplorer: dismissed (escape)")
         self.dismiss(None)

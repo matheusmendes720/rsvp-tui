@@ -14,7 +14,6 @@ imports that would happen if they lived inside the screens.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from textual.message import Message
 
@@ -33,7 +32,7 @@ class FigureChanged(Message):
         next_id: Figure id that is now active.
     """
 
-    prev_id: Optional[str] = None
+    prev_id: str | None = None
     next_id: str = ""
 
 
@@ -48,7 +47,7 @@ class FigureStateAdvanced(Message):
     """
 
     index: int = 0
-    book_id: Optional[str] = None
+    book_id: str | None = None
 
 
 @dataclass
@@ -59,7 +58,7 @@ class FigureCompleted(Message):
     The app marks the book as complete and shows a toast.
     """
 
-    book_id: Optional[str] = None
+    book_id: str | None = None
 
 
 @dataclass

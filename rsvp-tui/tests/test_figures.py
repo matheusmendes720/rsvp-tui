@@ -2,17 +2,16 @@
 
 import pytest
 
-from rsvp_tui.figures.base import Figure, FigureState
-from rsvp_tui.figures.registry import FigureRegistry, default_registry, reset_default_registry
-from rsvp_tui.figures.word import WordFigure
+from rsvp_tui.figures.base import FigureState
+from rsvp_tui.figures.bionic import BionicFigure
 from rsvp_tui.figures.chunk import ChunkFigure
 from rsvp_tui.figures.line import LineFigure
-from rsvp_tui.figures.bionic import BionicFigure
-from rsvp_tui.figures.spritz import SpritzFigure
-from rsvp_tui.figures.pacer import PacerFigure
 from rsvp_tui.figures.minimap import MiniMapFigure
+from rsvp_tui.figures.pacer import PacerFigure
+from rsvp_tui.figures.registry import FigureRegistry, default_registry, reset_default_registry
+from rsvp_tui.figures.spritz import SpritzFigure
 from rsvp_tui.figures.stats import StatsFigure
-
+from rsvp_tui.figures.word import WordFigure
 
 # A 50-word fixture for smoke tests. We build it programmatically so
 # the test doesn't fail when someone edits the prose.

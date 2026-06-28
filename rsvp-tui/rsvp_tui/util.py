@@ -19,8 +19,9 @@ import functools
 import logging
 import os
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 log = logging.getLogger(__name__)
 

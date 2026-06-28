@@ -21,7 +21,7 @@ registry via ``FigureRegistry()``.
 from __future__ import annotations
 
 import logging
-from typing import Dict, Iterable, List, Optional
+from collections.abc import Iterable
 
 from .base import Figure
 
@@ -37,7 +37,7 @@ class FigureRegistry:
     """
 
     def __init__(self) -> None:
-        self._figs: Dict[str, Figure] = {}
+        self._figs: dict[str, Figure] = {}
 
     # ---- Registration ---------------------------------------------------
 
@@ -53,13 +53,13 @@ class FigureRegistry:
 
     # ---- Queries --------------------------------------------------------
 
-    def all(self) -> List[Figure]:
+    def all(self) -> list[Figure]:
         return list(self._figs.values())
 
-    def ids(self) -> List[str]:
+    def ids(self) -> list[str]:
         return list(self._figs.keys())
 
-    def get(self, fig_id: str) -> Optional[Figure]:
+    def get(self, fig_id: str) -> Figure | None:
         return self._figs.get(fig_id)
 
     def __contains__(self, fig_id: object) -> bool:
@@ -104,7 +104,7 @@ class FigureRegistry:
 # ---- Module-level default registry ------------------------------------------
 
 
-_default: Optional[FigureRegistry] = None
+_default: FigureRegistry | None = None
 
 
 def default_registry() -> FigureRegistry:
@@ -115,7 +115,7 @@ def default_registry() -> FigureRegistry:
         # Importing here avoids a circular import: figures import
         # Figure from .base, and the registry is the only thing
         # that wires them up.
-        from . import word, chunk, line, bionic, spritz, pacer, minimap, stats
+        from . import bionic, chunk, line, minimap, pacer, spritz, stats, word
 
         _default.register_all(
             [

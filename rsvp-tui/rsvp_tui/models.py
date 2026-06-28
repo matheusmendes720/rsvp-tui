@@ -1,12 +1,10 @@
 """Data models for RSVP TUI."""
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
-from typing import List, Optional, Dict, Any
 from enum import Enum
-import json
-
+from pathlib import Path
+from typing import Any
 
 # v3 schema marker. Kept as a module constant so tests and the
 # ConfigManager can import it without a circular dependency on
@@ -29,21 +27,21 @@ class Chapter:
     start_word_index: int
     end_word_index: int
     word_count: int = 0
-    
+
     def __post_init__(self):
         if self.word_count == 0:
             self.word_count = self.end_word_index - self.start_word_index
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "title": self.title,
             "start_word_index": self.start_word_index,
             "end_word_index": self.end_word_index,
             "word_count": self.word_count,
         }
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Chapter":
+    def from_dict(cls, data: dict[str, Any]) -> "Chapter":
         return cls(**data)
 
 
@@ -53,59 +51,59 @@ class Book:
     id: str
     title: str
     author: str = "Unknown"
-    file_path: Optional[Path] = None
+    file_path: Path | None = None
     file_type: str = "txt"
-    
+
     # Content info
     word_count: int = 0
-    chapters: List[Chapter] = field(default_factory=list)
-    
+    chapters: list[Chapter] = field(default_factory=list)
+
     # Reading state
     current_word_index: int = 0
     current_chapter_index: int = 0
-    
+
     # Metadata
     added_date: datetime = field(default_factory=datetime.now)
-    last_read_date: Optional[datetime] = None
+    last_read_date: datetime | None = None
     total_reading_time_seconds: int = 0
-    
+
     # Cache
-    cache_file_path: Optional[Path] = None
-    
+    cache_file_path: Path | None = None
+
     @property
     def completion_percentage(self) -> float:
         """Calculate reading completion percentage."""
         if self.word_count == 0:
             return 0.0
         return (self.current_word_index / self.word_count) * 100
-    
+
     @property
-    def current_chapter(self) -> Optional[Chapter]:
+    def current_chapter(self) -> Chapter | None:
         """Get current chapter."""
         if not self.chapters:
             return None
         idx = min(self.current_chapter_index, len(self.chapters) - 1)
         return self.chapters[idx]
-    
-    def get_chapter_for_word(self, word_index: int) -> Optional[Chapter]:
+
+    def get_chapter_for_word(self, word_index: int) -> Chapter | None:
         """Find chapter containing given word index."""
         for chapter in self.chapters:
             if chapter.start_word_index <= word_index <= chapter.end_word_index:
                 return chapter
         return None
-    
+
     def update_progress(self, word_index: int):
         """Update reading progress."""
         self.current_word_index = min(word_index, self.word_count)
         self.last_read_date = datetime.now()
-        
+
         # Update chapter index
         for i, chapter in enumerate(self.chapters):
             if chapter.start_word_index <= self.current_word_index <= chapter.end_word_index:
                 self.current_chapter_index = i
                 break
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "id": self.id,
@@ -122,12 +120,12 @@ class Book:
             "total_reading_time_seconds": self.total_reading_time_seconds,
             "cache_file_path": str(self.cache_file_path) if self.cache_file_path else None,
         }
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Book":
+    def from_dict(cls, data: dict[str, Any]) -> "Book":
         """Create Book from dictionary."""
         chapters = [Chapter.from_dict(c) for c in data.get("chapters", [])]
-        
+
         return cls(
             id=data["id"],
             title=data["title"],
@@ -153,11 +151,11 @@ class Note:
     word_index: int
     chapter_index: int
     content: str
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     word_context: str = ""
-    
+
     def to_markdown(self) -> str:
         """Convert note to markdown format."""
         tags_str = ", ".join(self.tags) if self.tags else "none"
@@ -172,8 +170,8 @@ class Note:
 
 ---
 """
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "book_id": self.book_id,
@@ -185,9 +183,9 @@ class Note:
             "updated_at": self.updated_at.isoformat(),
             "word_context": self.word_context,
         }
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Note":
+    def from_dict(cls, data: dict[str, Any]) -> "Note":
         return cls(
             id=data["id"],
             book_id=data["book_id"],
@@ -209,12 +207,12 @@ class ReadingSession:
     current_word_index: int = 0
     wpm: int = 300
     is_playing: bool = False
-    
+
     # Statistics
     words_read: int = 0
     pauses_count: int = 0
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "book_id": self.book_id,
             "start_time": self.start_time.isoformat(),
@@ -256,7 +254,7 @@ class Config:
     # Timing settings
     punctuation_multiplier: float = 2.0
     pause_on_punctuation: bool = True
-    pause_chars: List[str] = field(default_factory=lambda: [".", "!", "?", ";", ":"])
+    pause_chars: list[str] = field(default_factory=lambda: [".", "!", "?", ";", ":"])
     comma_pause_multiplier: float = 1.5
 
     # Display settings
@@ -270,8 +268,8 @@ class Config:
     schema_version: int = 2
     theme: str = "dark"
     figure_id: str = "word"
-    figure_params: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    keybindings: Dict[str, str] = field(default_factory=dict)
+    figure_params: dict[str, dict[str, Any]] = field(default_factory=dict)
+    keybindings: dict[str, str] = field(default_factory=dict)
 
     # --- v3 fields (added by migration) ---
 

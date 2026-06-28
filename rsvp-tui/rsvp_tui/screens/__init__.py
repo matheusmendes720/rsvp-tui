@@ -21,18 +21,18 @@ Public API:
 * :class:`Messages` — Textual message types shared by the screens.
 """
 
-from .messages import (
-    FigureChanged,
-    FigureStateAdvanced,
-    FigureCompleted,
-    ConfigChanged,
-    BookOpened,
-)
 from .base import RSVPBaseScreen, new_ui_enabled
-from .library_screen import LibraryScreen
-from .reader_screen import ReaderScreen
-from .figure_picker import FigurePickerScreen
 from .command_palette import CommandPaletteScreen
+from .figure_picker import FigurePickerScreen
+from .library_screen import LibraryScreen
+from .messages import (
+    BookOpened,
+    ConfigChanged,
+    FigureChanged,
+    FigureCompleted,
+    FigureStateAdvanced,
+)
+from .reader_screen import ReaderScreen
 from .settings_screen import SettingsScreen
 
 __all__ = [

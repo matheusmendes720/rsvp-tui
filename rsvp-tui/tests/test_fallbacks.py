@@ -1,5 +1,5 @@
-import pytest
 from rsvp_tui import fallbacks
+
 
 def test_fallback_tokenization():
     text = "Hello, world! This is a test."

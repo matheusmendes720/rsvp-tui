@@ -22,14 +22,11 @@ harness cost on every commit.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import pytest
 
 from rsvp_tui.figures import FigureState, default_registry
 from rsvp_tui.figures.base import Figure
 from rsvp_tui.models import Config
-
 
 # ---- Registry cycling ---------------------------------------------------
 

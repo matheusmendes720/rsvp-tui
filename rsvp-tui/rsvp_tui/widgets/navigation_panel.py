@@ -8,7 +8,6 @@ the user selects a chapter or jumps to a specific position.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
 
 from textual.app import ComposeResult
 from textual.containers import Vertical
@@ -77,8 +76,8 @@ class NavigationPanel(Static):
     """
 
     # Book and chapters data
-    _book: Optional[Book] = None
-    _chapters: List[Chapter] = []
+    _book: Book | None = None
+    _chapters: list[Chapter] = []
     _page_size: int = 500
     _word_count: int = 0
 
@@ -88,7 +87,7 @@ class NavigationPanel(Static):
 
     def __init__(
         self,
-        book: Optional[Book] = None,
+        book: Book | None = None,
         page_size: int = 500,
         **kwargs
     ) -> None:

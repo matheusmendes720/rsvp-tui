@@ -35,9 +35,9 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - imported only by static checkers
     from .library_view import LibraryView
+    from .navigation_panel import NavigationPanel
     from .note_panel import NotePanel
     from .progress_bar import ProgressBar
-    from .navigation_panel import NavigationPanel
 
 # Names that are NOT deprecated — always safe to import.
 _NON_DEPRECATED = frozenset({"LibraryView", "NotePanel", "ProgressBar", "NavigationPanel"})
@@ -92,9 +92,9 @@ def __getattr__(name: str):
         # for one. Cheaper startup for any code that just
         # wants ``rsvp_tui.widgets`` to be importable.
         from . import library_view as _lv
+        from . import navigation_panel as _navp
         from . import note_panel as _np
         from . import progress_bar as _pb
-        from . import navigation_panel as _navp
 
         mapping = {
             "LibraryView": _lv.LibraryView,

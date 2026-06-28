@@ -14,7 +14,7 @@ We keep them separate so users can pick one or the other.
 from __future__ import annotations
 
 import math
-from typing import Any, Dict
+from typing import Any
 
 from rich.align import Align
 from rich.console import Group
@@ -22,7 +22,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from ..themes import get_theme
-from .base import Figure, FigureState
+from .base import Figure
 
 
 class BionicFigure(Figure):
@@ -32,7 +32,7 @@ class BionicFigure(Figure):
     name = "Bionic"
     description = "Bold the first portion of each word (Bionic style)."
     default_keybinding = "4"
-    default_params: Dict[str, Any] = {
+    default_params: dict[str, Any] = {
         "bold_ratio": 0.4,
         "show_context": True,
         "context_window": 1,

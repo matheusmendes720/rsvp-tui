@@ -11,7 +11,7 @@ text who want a sense of structure as they go.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from rich.align import Align
 from rich.console import Group
@@ -20,7 +20,7 @@ from rich.text import Text
 
 from .. import calculate_orp_index, split_word_for_display
 from ..themes import get_theme
-from .base import Figure, FigureState
+from .base import Figure
 
 
 class MiniMapFigure(Figure):
@@ -30,7 +30,7 @@ class MiniMapFigure(Figure):
     name = "Mini-Map"
     description = "Vertical scrubber bar + current word."
     default_keybinding = "7"
-    default_params: Dict[str, Any] = {
+    default_params: dict[str, Any] = {
         "bar_width": 10,
         "orp_enabled": True,
     }
@@ -67,7 +67,7 @@ class MiniMapFigure(Figure):
 
         bar_width = max(1, int(self.get_param("bar_width", 10)))
         n_words = len(self._words)
-        rows: List[Text] = []
+        rows: list[Text] = []
         for row in range(bar_width):
             idx = int((row / max(1, bar_width - 1)) * max(0, n_words - 1))
             if idx < 0:

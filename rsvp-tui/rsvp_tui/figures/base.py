@@ -30,8 +30,9 @@ Design notes:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any
 
 from textual.reactive import reactive
 from textual.widgets import Static
@@ -42,7 +43,7 @@ from ..logging_ import telemetry
 log = logging.getLogger(__name__)
 
 
-def _notify_callback_error(figure: "Figure", exc: BaseException, label: str) -> None:
+def _notify_callback_error(figure: Figure, exc: BaseException, label: str) -> None:
     """Best-effort toast when a figure callback fails.
 
     Used by :meth:`Figure.watch_word_index` to surface a callback
@@ -81,15 +82,15 @@ class FigureState:
     ``update_state`` on the figure.
     """
 
-    words: Tuple[str, ...] = ()
+    words: tuple[str, ...] = ()
     word_index: int = 0
     wpm: int = 300
     is_playing: bool = False
     punctuation_multiplier: float = 2.0
-    pause_chars: Tuple[str, ...] = (".", "!", "?", ";", ":")
+    pause_chars: tuple[str, ...] = (".", "!", "?", ";", ":")
     comma_pause_multiplier: float = 1.5
-    on_word_change: Optional[Callable[[int], None]] = None
-    on_complete: Optional[Callable[[], None]] = None
+    on_word_change: Callable[[int], None] | None = None
+    on_complete: Callable[[], None] | None = None
 
 
 # ---- Base class -------------------------------------------------------------
@@ -117,7 +118,7 @@ class Figure(Static):
     name: str = ""
     description: str = ""
     default_keybinding: str = ""
-    default_params: Dict[str, Any] = {}
+    default_params: dict[str, Any] = {}
 
     # Reactive state — shared with the rest of the app via Textual
     # reactive semantics. ``word_index`` is the source of truth for
@@ -128,25 +129,25 @@ class Figure(Static):
 
     def __init__(
         self,
-        state: Optional[FigureState] = None,
-        params: Optional[Dict[str, Any]] = None,
+        state: FigureState | None = None,
+        params: dict[str, Any] | None = None,
         *,
-        id: Optional[str] = None,  # Textual widget id
+        id: str | None = None,  # Textual widget id
     ) -> None:
         super().__init__(id=id)
         if state is None:
             state = FigureState()
         self._state = state
-        self._words: Tuple[str, ...] = state.words
+        self._words: tuple[str, ...] = state.words
         self._punctuation_multiplier: float = state.punctuation_multiplier
-        self._pause_chars: Tuple[str, ...] = state.pause_chars
-        self._on_word_change: Optional[Callable[[int], None]] = state.on_word_change
-        self._on_complete: Optional[Callable[[], None]] = state.on_complete
+        self._pause_chars: tuple[str, ...] = state.pause_chars
+        self._on_word_change: Callable[[int], None] | None = state.on_word_change
+        self._on_complete: Callable[[], None] | None = state.on_complete
 
         # Merge defaults with caller-supplied params. Unknown keys
         # are silently dropped — keeps old configs from breaking new
         # figures.
-        self._params: Dict[str, Any] = dict(self.default_params)
+        self._params: dict[str, Any] = dict(self.default_params)
         if params:
             for k, v in params.items():
                 if k in self.default_params:
@@ -181,7 +182,7 @@ class Figure(Static):
 
     # ---- Parameter & state updates -------------------------------------
 
-    def apply_params(self, params: Dict[str, Any]) -> None:
+    def apply_params(self, params: dict[str, Any]) -> None:
         """Update figure-specific parameters at runtime."""
         changed = False
         for k, v in params.items():

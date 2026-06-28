@@ -10,44 +10,44 @@ __author__ = "RSVP Team"
 # Try to import Rust extensions
 try:
     from rsvp_core import (
-        tokenize_text,
-        parse_pdf_bytes,
-        parse_epub_bytes,
-        parse_markdown,
-        parse_plain_text,
+        Chapter,
+        DocumentMetadata,
+        ParseResult,
+        WordParts,
         calculate_orp_index,
         calculate_word_delay,
-        split_word_for_display,
-        estimate_reading_time,
-        should_pause_at_punctuation,
         calculate_word_frequency_distribution,
-        identify_difficult_words,
+        estimate_reading_time,
         generate_reading_heatmap_data,
-        ParseResult,
-        Chapter,
-        WordParts,
-        DocumentMetadata,
+        identify_difficult_words,
+        parse_epub_bytes,
+        parse_markdown,
+        parse_pdf_bytes,
+        parse_plain_text,
+        should_pause_at_punctuation,
+        split_word_for_display,
+        tokenize_text,
     )
     RUST_AVAILABLE = True
 except ImportError:
     RUST_AVAILABLE = False
     # Fall back to pure Python implementations
     from .fallbacks import (
-        tokenize_text,
-        parse_pdf_bytes,
-        parse_pdf_path,
+        calculate_orp_index,
+        calculate_word_delay,
+        calculate_word_frequency_distribution,
+        estimate_reading_time,
+        generate_reading_heatmap_data,
+        identify_difficult_words,
         parse_epub_bytes,
         parse_epub_path,
         parse_markdown,
+        parse_pdf_bytes,
+        parse_pdf_path,
         parse_plain_text,
-        calculate_orp_index,
-        calculate_word_delay,
-        split_word_for_display,
-        estimate_reading_time,
         should_pause_at_punctuation,
-        calculate_word_frequency_distribution,
-        identify_difficult_words,
-        generate_reading_heatmap_data,
+        split_word_for_display,
+        tokenize_text,
     )
     # Create placeholder classes (only when Rust not available)
     class ParseResult:

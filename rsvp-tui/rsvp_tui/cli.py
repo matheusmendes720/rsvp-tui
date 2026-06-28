@@ -25,7 +25,6 @@ import os
 import platform
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import click
 
@@ -34,7 +33,6 @@ from .app import RSVPApp
 from .managers.library_manager import LibraryManager
 from .models import Config
 
-
 # ---- Aliases + group registry ----------------------------------------------
 
 
@@ -42,7 +40,7 @@ from .models import Config
 # as separate Click commands (that would require a stub command
 # that re-dispatches); instead, ``RsvpGroup.get_command`` resolves
 # them. This keeps the implementation list in one place.
-ALIASES: Dict[str, str] = {
+ALIASES: dict[str, str] = {
     "r": "read",
     "open": "read",
     "i": "import",
@@ -57,7 +55,7 @@ ALIASES: Dict[str, str] = {
 
 # Commands grouped by category, in the order they should appear
 # in ``--help``. Each entry is ``(category, [commands...])``.
-COMMAND_GROUPS: List[Tuple[str, List[str]]] = [
+COMMAND_GROUPS: list[tuple[str, list[str]]] = [
     ("Reading", ["read"]),
     ("Library", ["import", "library", "remove", "stats"]),
     ("Configuration", ["config"]),
@@ -69,15 +67,15 @@ COMMAND_GROUPS: List[Tuple[str, List[str]]] = [
 class RsvpGroup(click.Group):
     """Click group with aliases and a grouped ``--help`` layout."""
 
-    def get_command(self, ctx: click.Context, name: str) -> Optional[click.Command]:
+    def get_command(self, ctx: click.Context, name: str) -> click.Command | None:
         # Resolve an alias to its canonical name before lookup.
         canonical = ALIASES.get(name, name)
         return super().get_command(ctx, canonical)
 
-    def list_commands(self, ctx: click.Context) -> List[str]:
+    def list_commands(self, ctx: click.Context) -> list[str]:
         """Return subcommand names in grouped order, then any extras."""
         seen = set()
-        ordered: List[str] = []
+        ordered: list[str] = []
         for _, cmds in COMMAND_GROUPS:
             for c in cmds:
                 if c not in seen and c in self.commands:
@@ -95,7 +93,7 @@ class RsvpGroup(click.Group):
     def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         """Render commands grouped by category, one section per group."""
         # Collect (category, name, help) rows.
-        rows: List[Tuple[str, str, str]] = []
+        rows: list[tuple[str, str, str]] = []
         for category, cmds in COMMAND_GROUPS:
             for name in cmds:
                 cmd = self.get_command(ctx, name)
@@ -171,7 +169,7 @@ def cli(ctx: click.Context) -> None:
 @click.option("--focus", "-f", is_flag=True, help="Start in focus mode")
 def read(
     file_path: Path,
-    wpm: Optional[int],
+    wpm: int | None,
     word: int,
     focus: bool,
 ) -> None:
@@ -196,6 +194,8 @@ def read(
             app.focus_mode = True
         app.run()
     except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.read", exc)
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
@@ -216,6 +216,8 @@ def import_(file_path: Path) -> None:
         click.echo(f"  Words:     {book.word_count:,}")
         click.echo(f"  Chapters:  {len(book.chapters)}")
     except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.import_", exc)
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
@@ -223,7 +225,7 @@ def import_(file_path: Path) -> None:
 @cli.command()
 @click.option("--list", "-l", "list_books", is_flag=True, help="List all books")
 @click.option("--search", "-s", help="Search books by title/author")
-def library(list_books: bool, search: Optional[str]) -> None:
+def library(list_books: bool, search: str | None) -> None:
     """Manage book library (or launch the TUI at the library view)."""
     config = Config.load()
     library = LibraryManager(config.library_db_path)
@@ -332,6 +334,8 @@ def doctor() -> None:
         library = LibraryManager(cfg.library_db_path)
         report["book_count"] = len(library.list_books())
     except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.doctor", exc)
         report["book_count_error"] = str(exc)
     click.echo(json.dumps(report, indent=2))
     healthy = (
@@ -378,7 +382,7 @@ def where() -> None:
         marker = "✓" if p.exists() else "·"
         click.echo(f"  {marker} {label:<14} {p}")
     click.echo(
-        f"\nTo override, set RSVP_HOME to a directory of your choice."
+        "\nTo override, set RSVP_HOME to a directory of your choice."
     )
 
 
@@ -419,6 +423,8 @@ def main() -> None:
         click.echo("\nInterrupted.")
         sys.exit(130)
     except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.main", exc)
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 

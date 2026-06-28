@@ -1,8 +1,8 @@
+
 import pytest
-from pathlib import Path
-import tempfile
-import shutil
-from rsvp_tui.models import Config, Book, Chapter
+
+from rsvp_tui.models import Book, Chapter, Config
+
 
 @pytest.fixture
 def mock_config(tmp_path):

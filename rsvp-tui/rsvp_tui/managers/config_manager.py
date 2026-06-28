@@ -23,7 +23,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ..models import Config
 from ..util import atomic_write_text
@@ -38,7 +38,7 @@ CURRENT_SCHEMA: int = 3
 # ---- Migrations -------------------------------------------------------------
 
 
-def _migrate_1_to_2(data: Dict[str, Any]) -> Dict[str, Any]:
+def _migrate_1_to_2(data: dict[str, Any]) -> dict[str, Any]:
     """v1 -> v2: add theme, figure_id, figure_params, keybindings.
 
     The v1 schema only had reading/timing/display fields. v2 adds a
@@ -56,7 +56,7 @@ def _migrate_1_to_2(data: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
-def _migrate_2_to_3(data: Dict[str, Any]) -> Dict[str, Any]:
+def _migrate_2_to_3(data: dict[str, Any]) -> dict[str, Any]:
     """v2 -> v3: add navigation panel settings.
 
     v3 adds page_size for pagination and visibility flags for
@@ -71,7 +71,7 @@ def _migrate_2_to_3(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # Map of old version -> migration function. Keys are the *old* version.
-MIGRATIONS: Dict[int, Any] = {
+MIGRATIONS: dict[int, Any] = {
     1: _migrate_1_to_2,
     2: _migrate_2_to_3,
 }
@@ -88,7 +88,7 @@ class ConfigManager:
     hands out and re-reads.
     """
 
-    def __init__(self, config_path: Optional[Path] = None) -> None:
+    def __init__(self, config_path: Path | None = None) -> None:
         if config_path is None:
             config_path = Path.home() / ".rsvp" / "config.json"
         self.path: Path = config_path
@@ -113,7 +113,7 @@ class ConfigManager:
         data = self._migrate(data)
         return self._build_config(data)
 
-    def _migrate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _migrate(self, data: dict[str, Any]) -> dict[str, Any]:
         """Run any necessary migrations so ``data`` matches CURRENT_SCHEMA."""
         version = int(data.get("schema_version", 1))
         while version < CURRENT_SCHEMA:
@@ -129,7 +129,7 @@ class ConfigManager:
             version += 1  # Increment after each successful migration
         return data
 
-    def _build_config(self, data: Dict[str, Any]) -> Config:
+    def _build_config(self, data: dict[str, Any]) -> Config:
         """Build a ``Config`` from a (now-migrated) dict."""
         # We only pass fields that exist in v2+; older fields default.
         try:
@@ -203,11 +203,11 @@ class ConfigManager:
         cfg.config_path = self.path
         return cfg
 
-    def _default_payload(self) -> Dict[str, Any]:
+    def _default_payload(self) -> dict[str, Any]:
         cfg = self._default_with_path()
         return self._serialize(cfg)
 
-    def _serialize(self, cfg: Config) -> Dict[str, Any]:
+    def _serialize(self, cfg: Config) -> dict[str, Any]:
         """Convert a ``Config`` to a JSON-safe dict.
 
         We hand-pick fields rather than using ``dataclasses.asdict`` so

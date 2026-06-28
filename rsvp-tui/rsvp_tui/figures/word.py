@@ -16,7 +16,7 @@ highlight plus dimmed context words.
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from rich.align import Align
 from rich.console import Group
@@ -25,7 +25,7 @@ from rich.text import Text
 
 from .. import calculate_orp_index, split_word_for_display
 from ..themes import get_theme
-from .base import Figure, FigureState
+from .base import Figure
 
 
 class WordFigure(Figure):
@@ -35,7 +35,7 @@ class WordFigure(Figure):
     name = "Single Word (ORP)"
     description = "One word at a time, ORP letter highlighted."
     default_keybinding = "1"
-    default_params: Dict[str, Any] = {
+    default_params: dict[str, Any] = {
         "orp_enabled": True,
         "show_context": True,
         "context_window": 1,

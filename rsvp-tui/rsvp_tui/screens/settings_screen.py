@@ -23,7 +23,7 @@ there's no separate save return value.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -43,10 +43,10 @@ from textual.widgets import (
 )
 
 from ..figures import default_registry
+from ..logging_ import telemetry
 from ..managers.config_manager import ConfigManager
 from ..models import Config
 from ..themes import all_themes
-from ..logging_ import telemetry
 from .messages import ConfigChanged
 
 log = logging.getLogger(__name__)
@@ -55,27 +55,27 @@ log = logging.getLogger(__name__)
 # ---- Field helpers ---------------------------------------------------------
 
 
-def _int_field(attr: str, label: str, lo: int, hi: int) -> Dict[str, Any]:
+def _int_field(attr: str, label: str, lo: int, hi: int) -> dict[str, Any]:
     return {"attr": attr, "label": label, "type": "int", "lo": lo, "hi": hi}
 
 
-def _float_field(attr: str, label: str, lo: float, hi: float) -> Dict[str, Any]:
+def _float_field(attr: str, label: str, lo: float, hi: float) -> dict[str, Any]:
     return {"attr": attr, "label": label, "type": "float", "lo": lo, "hi": hi}
 
 
-def _bool_field(attr: str, label: str) -> Dict[str, Any]:
+def _bool_field(attr: str, label: str) -> dict[str, Any]:
     return {"attr": attr, "label": label, "type": "bool"}
 
 
 def _choice_field(
-    attr: str, label: str, choices: List[Tuple[str, str]]
-) -> Dict[str, Any]:
+    attr: str, label: str, choices: list[tuple[str, str]]
+) -> dict[str, Any]:
     """``choices`` is a list of ``(value, label)`` tuples."""
     return {"attr": attr, "label": label, "type": "choice", "choices": choices}
 
 
 # Tab 1 — Reading.
-READING_FIELDS: List[Dict[str, Any]] = [
+READING_FIELDS: list[dict[str, Any]] = [
     _int_field("default_wpm", "Default WPM", 100, 1000),
     _int_field("min_wpm", "Min WPM", 50, 1000),
     _int_field("max_wpm", "Max WPM", 100, 1500),
@@ -83,7 +83,7 @@ READING_FIELDS: List[Dict[str, Any]] = [
 ]
 
 # Tab 2 — Display & Theme.
-DISPLAY_FIELDS: List[Dict[str, Any]] = [
+DISPLAY_FIELDS: list[dict[str, Any]] = [
     _bool_field("enable_orp", "Enable ORP Highlighting"),
     _bool_field("focus_mode", "Start in Focus Mode"),
     _bool_field("show_progress_bar", "Show Progress Bar"),
@@ -99,14 +99,14 @@ DISPLAY_FIELDS: List[Dict[str, Any]] = [
 ]
 
 # Tab 4 — Navigation (v3 settings)
-NAVIGATION_FIELDS: List[Dict[str, Any]] = [
+NAVIGATION_FIELDS: list[dict[str, Any]] = [
     _int_field("page_size", "Page Size (words)", 100, 2000),
     _bool_field("show_navigation_panel", "Show Navigation Panel"),
     _bool_field("show_note_panel", "Show Note Panel"),
 ]
 
 # Tab 3 — Timing.
-TIMING_FIELDS: List[Dict[str, Any]] = [
+TIMING_FIELDS: list[dict[str, Any]] = [
     _float_field("punctuation_multiplier", "Punctuation Multiplier", 1.0, 5.0),
     _bool_field("pause_on_punctuation", "Pause on Punctuation"),
     _float_field("comma_pause_multiplier", "Comma Multiplier", 1.0, 3.0),
@@ -216,16 +216,16 @@ class SettingsScreen(ModalScreen[None]):
 
     DEBOUNCE_MS = 200
 
-    def __init__(self, config: Optional[Config] = None) -> None:
+    def __init__(self, config: Config | None = None) -> None:
         super().__init__()
         self._config = config or Config.load()
         self._manager = ConfigManager()
-        self._debounce_timer: Optional[Timer] = None
+        self._debounce_timer: Timer | None = None
         # Track which fields are currently invalid so we don't
         # apply them. Maps attr -> error message.
-        self._errors: Dict[str, str] = {}
+        self._errors: dict[str, str] = {}
         # Snapshot for the per-figure params tab.
-        self._figure_params: Dict[str, Dict[str, Any]] = dict(
+        self._figure_params: dict[str, dict[str, Any]] = dict(
             self._config.figure_params or {}
         )
 
@@ -262,14 +262,14 @@ class SettingsScreen(ModalScreen[None]):
                     yield self._build_figure_params_tab()
             yield Static("", id="status-line")
 
-    def _build_fields(self, fields: List[Dict[str, Any]]) -> List[Any]:
+    def _build_fields(self, fields: list[dict[str, Any]]) -> list[Any]:
         """Build a list of widgets for a flat field list.
 
         Yields ``(Label, Input/Checkbox/Select, Static(error))``
         rows for each field. The ``Static(error)`` is empty by
         default; it appears when the user enters an invalid value.
         """
-        widgets: List[Any] = []
+        widgets: list[Any] = []
         for f in fields:
             attr = f["attr"]
             label = f["label"]
@@ -350,7 +350,7 @@ class SettingsScreen(ModalScreen[None]):
     def _apply_now(self) -> None:
         """Flush all current form values to ``Config`` and emit."""
         self._debounce_timer = None
-        patch: Dict[str, Any] = {}
+        patch: dict[str, Any] = {}
 
         # Read all simple fields.
         for fld_list in (READING_FIELDS, DISPLAY_FIELDS, TIMING_FIELDS):

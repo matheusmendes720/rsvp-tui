@@ -16,21 +16,19 @@ unset it) — no code changes needed.
 """
 
 import logging
-from pathlib import Path
-from typing import Optional
 
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
-from textual.widgets import Header, Footer, Static, Label, Button
-from textual.reactive import reactive
 from textual.binding import Binding
+from textual.containers import Horizontal, Vertical
+from textual.reactive import reactive
+from textual.widgets import Footer, Header, Static
 
 from .figures import FigureState
+from .logging_ import init_logging, telemetry, telemetry_error
 from .managers.config_manager import ConfigManager
-from .models import Book, Config
 from .managers.library_manager import LibraryManager
 from .managers.note_manager import NoteManager
-from .logging_ import init_logging, shutdown_logging, telemetry, telemetry_error
+from .models import Book, Config
 from .screens import (
     BookOpened,
     ConfigChanged,
@@ -61,7 +59,7 @@ if not new_ui_enabled():
 
 class RSVPApp(App):
     """Main RSVP TUI Application."""
-    
+
     CSS = """
     Screen {
         align: center middle;
@@ -118,7 +116,7 @@ class RSVPApp(App):
         display: none;
     }
     """
-    
+
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("l", "show_library", "Library"),
@@ -135,11 +133,11 @@ class RSVPApp(App):
         Binding("tab", "toggle_panel", "Toggle Panel"),
         ("question", "show_help", "Help"),
     ]
-    
+
     # Reactive state
     current_view = reactive("library")  # "library", "reader", "settings"
     focus_mode = reactive(False)
-    
+
     def __init__(self):
         super().__init__()
         # Single source of truth for the in-memory config. The
@@ -150,9 +148,9 @@ class RSVPApp(App):
         self.library_manager = LibraryManager(self.config.library_db_path)
         self.note_manager = NoteManager(self.config.notes_dir)
 
-        self.current_book: Optional[Book] = None
+        self.current_book: Book | None = None
         self.words: list = []
-        self.reader: Optional[ReaderDisplay] = None
+        self.reader: ReaderDisplay | None = None
         # When True, route to the Screen-based UI. Cached at
         # construction so behavior is consistent for the lifetime
         # of the process even if the env var is toggled.
@@ -168,7 +166,7 @@ class RSVPApp(App):
             self.config.library_db_path,
         )
         telemetry.app_startup(new_ui=self._new_ui, figure=self.config.figure_id)
-    
+
     def compose(self) -> ComposeResult:
         """Compose the UI.
 
@@ -182,7 +180,7 @@ class RSVPApp(App):
             # We still need to push the initial screen from on_mount.
             return
         yield Header(show_clock=True)
-        
+
         with Vertical(id="main-content"):
             # Library View
             with Vertical(id="library-view"):
@@ -191,7 +189,7 @@ class RSVPApp(App):
                     on_select=self._on_book_selected,
                     on_delete=self._on_book_deleted,
                 )
-            
+
             # Reader View (initially hidden)
             with Horizontal(id="reader-container", classes="hidden"):
                 with Vertical(id="reader-layout"):
@@ -201,21 +199,21 @@ class RSVPApp(App):
                         "[Space] Play/Pause  [←/→] Skip  [↑/↓] Speed  [f] Focus",
                         id="controls-bar",
                     )
-                
+
                 yield NotePanel(
                     self.note_manager,
                     on_note_added=self._on_note_added,
                 )
-            
+
             # Settings View (initially hidden)
             # NOTE: SettingsPanel is deprecated and maps to SettingsScreen which
             # does not accept on_save. The legacy compose path is non-functional.
             # Use RSVP_NEW_UI=1 to get the working Screen-based UI.
             with Vertical(id="settings-view", classes="hidden"):
                 pass
-        
+
         yield Footer()
-    
+
     def on_mount(self):
         """Initialize on mount.
 
@@ -345,7 +343,7 @@ class RSVPApp(App):
         """Open file explorer (Ctrl+O)."""
         from .screens.file_explorer import FileExplorerScreen
 
-        def on_file_selected(path: Optional[str]) -> None:
+        def on_file_selected(path: str | None) -> None:
             if path:
                 try:
                     book = self.library_manager.import_book(path)
@@ -383,8 +381,8 @@ class RSVPApp(App):
 
     def _set_figure(self, index: int) -> None:
         """Set figure by index (0-7)."""
-        from .screens.reader_screen import ReaderScreen
         from .figures import default_registry
+        from .screens.reader_screen import ReaderScreen
 
         if not isinstance(self.screen, ReaderScreen):
             return
@@ -500,7 +498,7 @@ class RSVPApp(App):
             return
         self.config = self._config_manager.load()
         log.info("config.changed: keys=%s", list(message.keys))
-    
+
     def _show_library(self):
         """Show library view."""
         self.current_view = "library"
@@ -508,26 +506,26 @@ class RSVPApp(App):
         self.query_one("#reader-container").add_class("hidden")
         self.query_one("#settings-view").add_class("hidden")
         self.sub_title = "Library"
-        
+
         # Refresh library
         library_view = self.query_one(LibraryView)
         library_view.load_books()
-    
+
     def _show_reader(self):
         """Show reader view."""
         if not self.current_book:
             return
-        
+
         self.current_view = "reader"
         self.query_one("#library-view").add_class("hidden")
         self.query_one("#reader-container").remove_class("hidden")
         self.query_one("#settings-view").add_class("hidden")
         self.sub_title = self.current_book.title
-        
+
         # Initialize reader if needed
         if not self.reader:
             self._init_reader()
-    
+
     def _show_settings(self):
         """Show settings view."""
         self.current_view = "settings"
@@ -535,38 +533,44 @@ class RSVPApp(App):
         self.query_one("#reader-container").add_class("hidden")
         self.query_one("#settings-view").remove_class("hidden")
         self.sub_title = "Settings"
-    
+
     def _init_reader(self):
         """Initialize the reader display."""
         if not self.current_book:
             return
-        
-        # Load words from cache
-        self.words = self.library_manager.load_words(self.current_book.id)
-        
-        if not self.words:
-            self.notify("Error loading book content", severity="error")
-            return
-        
-        # Create reader widget
-        container = self.query_one("#reader-display")
-        container.remove_children()
 
-        # Build FigureState for the Figure widget
-        state = FigureState(
-            words=tuple(self.words),
-            word_index=self.current_book.current_word_index,
-            wpm=self.config.default_wpm,
-            is_playing=False,
-            punctuation_multiplier=self.config.punctuation_multiplier,
-            pause_chars=tuple(self.config.pause_chars),
-            comma_pause_multiplier=self.config.comma_pause_multiplier,
-            on_word_change=self._on_word_changed,
-            on_complete=self._on_reading_complete,
-        )
-        self.reader = ReaderDisplay(state=state, params={"orp_enabled": self.config.enable_orp})
-        container.mount(self.reader)
-        
+        try:
+            # Load words from cache
+            self.words = self.library_manager.load_words(self.current_book.id)
+
+            if not self.words:
+                self.notify("Error loading book content", severity="error")
+                return
+
+            # Create reader widget
+            container = self.query_one("#reader-display")
+            container.remove_children()
+
+            # Build FigureState for the Figure widget
+            state = FigureState(
+                words=tuple(self.words),
+                word_index=self.current_book.current_word_index,
+                wpm=self.config.default_wpm,
+                is_playing=False,
+                punctuation_multiplier=self.config.punctuation_multiplier,
+                pause_chars=tuple(self.config.pause_chars),
+                comma_pause_multiplier=self.config.comma_pause_multiplier,
+                on_word_change=self._on_word_changed,
+                on_complete=self._on_reading_complete,
+            )
+            self.reader = ReaderDisplay(state=state, params={"orp_enabled": self.config.enable_orp})
+            container.mount(self.reader)
+        except Exception as exc:
+            telemetry_error("app._init_reader", exc)
+            log.exception("failed to initialise reader")
+            self.notify(f"Reader error: {exc}", severity="error")
+            raise
+
         # Update progress bar
         progress = self.query_one(ProgressBar)
         progress.update_progress(
@@ -574,11 +578,11 @@ class RSVPApp(App):
             len(self.words),
         )
         progress.set_wpm(self.config.default_wpm)
-        
+
         # Update note panel
         note_panel = self.query_one(NotePanel)
         note_panel.set_position(self.current_book.id, self.current_book.current_word_index)
-    
+
     def _on_book_selected(self, book: Book):
         """Handle book selection."""
         self.current_book = book
@@ -586,29 +590,29 @@ class RSVPApp(App):
             self._push_reader(book)
             return
         self._show_reader()
-    
+
     def _on_book_deleted(self, book_id: str):
         """Handle book deletion."""
         self.library_manager.delete_book(book_id)
         self.notify("Book deleted")
-    
+
     def _on_word_changed(self, index: int):
         """Handle word change during reading."""
         if self.current_book:
             self.current_book.current_word_index = index
-            
+
             # Update progress bar
             progress = self.query_one(ProgressBar)
             progress.update_progress(index)
-            
+
             # Update note panel position
             note_panel = self.query_one(NotePanel)
             note_panel.set_position(self.current_book.id, index)
-            
+
             # Auto-save progress every 100 words
             if index % 100 == 0:
                 self.library_manager.update_progress(self.current_book.id, index)
-    
+
     def _on_reading_complete(self):
         """Handle reading completion."""
         if self.current_book:
@@ -617,19 +621,19 @@ class RSVPApp(App):
                 self.current_book.word_count,
             )
             self.notify("Reading complete!")
-    
+
     def _on_note_added(self, word_index: int):
         """Handle add note request."""
         # TODO: Open note dialog
         self.notify(f"Add note at word {word_index}")
-    
-    def _on_settings_saved(self, config: Optional[Config]):
+
+    def _on_settings_saved(self, config: Config | None):
         """Handle settings save."""
         if config:
             self.config = config
             self.notify("Settings saved")
         self._show_library()
-    
+
     # Actions
     def action_show_library(self):
         """Show library view."""
@@ -643,57 +647,57 @@ class RSVPApp(App):
         """Toggle play/pause."""
         if self.current_view == "reader" and self.reader:
             self.reader.toggle()
-    
+
     def action_prev_word(self):
         """Go to previous word."""
         if self.current_view == "reader" and self.reader:
             self.reader.prev_word()
-    
+
     def action_next_word(self):
         """Go to next word."""
         if self.current_view == "reader" and self.reader:
             self.reader.next_word()
-    
+
     def action_increase_speed(self):
         """Increase reading speed."""
         if self.reader:
             self.reader.increase_speed()
             progress = self.query_one(ProgressBar)
             progress.set_wpm(self.reader.wpm)
-    
+
     def action_decrease_speed(self):
         """Decrease reading speed."""
         if self.reader:
             self.reader.decrease_speed()
             progress = self.query_one(ProgressBar)
             progress.set_wpm(self.reader.wpm)
-    
+
     def action_jump_start(self):
         """Jump to start."""
         if self.reader:
             self.reader.jump_to(0)
-    
+
     def action_jump_end(self):
         """Jump to end."""
         if self.reader:
             self.reader.jump_to(len(self.words) - 1)
-    
+
     def action_toggle_focus(self):
         """Toggle focus mode."""
         self.focus_mode = not self.focus_mode
         if self.reader:
             self.reader.focus_mode = self.focus_mode
-        
+
         if self.focus_mode:
             self.add_class("focus-mode")
         else:
             self.remove_class("focus-mode")
-    
+
     def action_add_note(self):
         """Add note at current position."""
         if self.current_view == "reader" and self.reader and self.current_book:
             self._on_note_added(self.reader.word_index)
-    
+
     def action_toggle_panel(self):
         """Toggle side panel."""
         note_panel = self.query_one(NotePanel)
@@ -701,7 +705,7 @@ class RSVPApp(App):
             note_panel.remove_class("hidden")
         else:
             note_panel.add_class("hidden")
-    
+
     def action_show_help(self):
         """Show help dialog."""
         help_text = """
@@ -726,7 +730,7 @@ class RSVPApp(App):
         • [b]?[/b] - This help
         """
         self.notify(help_text, title="Help", timeout=10)
-    
+
     def on_unmount(self):
         """Cleanup on exit."""
         # Save final progress

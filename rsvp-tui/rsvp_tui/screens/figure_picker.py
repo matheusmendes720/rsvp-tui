@@ -22,7 +22,6 @@ from textual.screen import ModalScreen
 from textual.widgets import Label, ListItem, ListView, Static
 
 from ..figures import default_registry
-from .base import RSVPBaseScreen
 
 log = logging.getLogger(__name__)
 

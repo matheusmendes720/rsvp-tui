@@ -58,13 +58,12 @@ import os
 import sys
 import traceback
 from pathlib import Path
-from typing import Optional
 
 # The rsvp hierarchy — every rsvp_tui module should get a logger child of this.
 _RSVP_ROOT = "rsvp"
 
 # Our dedicated telemetry child logger.
-_telemetry_logger: Optional[logging.Logger] = None
+_telemetry_logger: logging.Logger | None = None
 
 
 # -------------------------------------------------------------------
@@ -72,10 +71,10 @@ _telemetry_logger: Optional[logging.Logger] = None
 # -------------------------------------------------------------------
 
 def init_logging(
-    config: Optional[object] = None,
+    config: object | None = None,
     *,
-    level: Optional[str] = None,
-    log_file: Optional[Path] = None,
+    level: str | None = None,
+    log_file: Path | None = None,
 ) -> None:
     """Configure the ``rsvp`` logger tree.
 
@@ -147,7 +146,7 @@ def _t_emit(**kwargs: Any) -> None:
 def telemetry_error(
     module: str,
     exc: BaseException,
-    extra: Optional[dict[str, Any]] = None,
+    extra: dict[str, Any] | None = None,
 ) -> None:
     """Emit an error telemetry event with exception details."""
     _t_emit(
@@ -178,7 +177,7 @@ def shutdown_logging() -> None:
 # Internal helpers
 # -------------------------------------------------------------------
 
-def _resolve_level(level: Optional[str], config: Optional[object]) -> str:
+def _resolve_level(level: str | None, config: object | None) -> str:
     """Return the effective log level string."""
     if level:
         return level
@@ -191,7 +190,7 @@ def _resolve_level(level: Optional[str], config: Optional[object]) -> str:
     return os.environ.get("RSVP_LOG_LEVEL", "INFO")
 
 
-def _resolve_file(log_file: Optional[Path], config: Optional[object]) -> Optional[Path]:
+def _resolve_file(log_file: Path | None, config: object | None) -> Path | None:
     """Return the effective log file path."""
     if log_file is not None:
         return log_file
@@ -209,7 +208,7 @@ def _resolve_file(log_file: Optional[Path], config: Optional[object]) -> Optiona
 
 def _install_handlers(
     rsvp_root: logging.Logger,
-    log_file: Optional[Path],
+    log_file: Path | None,
     level: str,
 ) -> None:
     """Add console (+ optional file) handlers to the root logger."""
@@ -273,7 +272,7 @@ class LoggingMixin:
 
     log: logging.Logger
 
-    def _init_logging(self, name: str, *, level: Optional[int] = None) -> None:
+    def _init_logging(self, name: str, *, level: int | None = None) -> None:
         self.log = logging.getLogger(name)
         if level is not None:
             self.log.setLevel(level)

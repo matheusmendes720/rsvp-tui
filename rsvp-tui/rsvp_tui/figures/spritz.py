@@ -9,7 +9,7 @@ column for the eye, very fast for high-WPM reading.
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from rich.align import Align
 from rich.panel import Panel
@@ -17,7 +17,7 @@ from rich.text import Text
 
 from .. import calculate_orp_index, split_word_for_display
 from ..themes import get_theme
-from .base import Figure, FigureState
+from .base import Figure
 
 
 class SpritzFigure(Figure):
@@ -27,7 +27,7 @@ class SpritzFigure(Figure):
     name = "Spritz"
     description = "Pivot letter at a fixed column; right-padded to align."
     default_keybinding = "5"
-    default_params: Dict[str, Any] = {
+    default_params: dict[str, Any] = {
         "orp_enabled": True,
         "padding": 12,
     }

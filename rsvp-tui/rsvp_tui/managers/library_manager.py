@@ -1,26 +1,24 @@
 """Library management for books."""
 
+import json
 import logging
 import sqlite3
-import json
-import hashlib
-import shutil
-from pathlib import Path
-from typing import List, Optional, Dict, Any
-from datetime import datetime
 import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-from ..models import Book, Chapter, FileType
-from .. import parse_markdown, parse_plain_text, parse_epub_path, parse_pdf_path, tokenize_text
+from .. import parse_epub_path, parse_markdown, parse_pdf_path, parse_plain_text, tokenize_text
 from ..logging_ import telemetry
+from ..models import Book, Chapter, FileType
 
 log = logging.getLogger(__name__)
 
 
 class LibraryManager:
     """Manages book library with SQLite backend."""
-    
-    def __init__(self, db_path: Optional[Path] = None):
+
+    def __init__(self, db_path: Path | None = None):
         from ..models import Config
         if db_path is None:
             config = Config.load()
@@ -36,7 +34,7 @@ class LibraryManager:
             self.db_path,
             self.cache_dir,
         )
-    
+
     def _init_db(self):
         """Initialize database schema."""
         with sqlite3.connect(self.db_path) as conn:
@@ -57,7 +55,7 @@ class LibraryManager:
                     data JSON
                 )
             """)
-            
+
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS chapters (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,16 +67,16 @@ class LibraryManager:
                     FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
                 )
             """)
-            
+
             conn.commit()
-    
+
     def import_book(self, file_path: Path) -> Book:
         """Import a book from file."""
         file_path = Path(file_path)
-        
+
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
-        
+
         # Detect file type
         suffix = file_path.suffix.lower()
         file_type_map = {
@@ -88,14 +86,14 @@ class LibraryManager:
             ".epub": FileType.EPUB,
             ".pdf": FileType.PDF,
         }
-        
+
         file_type = file_type_map.get(suffix)
         if file_type is None:
             raise ValueError(f"Unsupported file type: {suffix}")
-        
+
         # Parse file
         content = file_path.read_bytes()
-        
+
         if file_type == FileType.MARKDOWN:
             text = content.decode("utf-8", errors="replace")
             result = parse_markdown(text)
@@ -108,10 +106,10 @@ class LibraryManager:
         elif file_type == FileType.PDF:
             # For PDF, use path directly for faster parsing
             result = parse_pdf_path(file_path)
-        
+
         # Generate unique ID
         book_id = f"book_{uuid.uuid4().hex[:16]}"
-        
+
         # Create book object
         chapters = [
             Chapter(
@@ -121,7 +119,7 @@ class LibraryManager:
             )
             for ch in result.chapters
         ]
-        
+
         book = Book(
             id=book_id,
             title=result.title or file_path.stem,
@@ -132,7 +130,7 @@ class LibraryManager:
             chapters=chapters,
             added_date=datetime.now(),
         )
-        
+
         # Cache tokenized words
         words = tokenize_text(result.plain_text)
         cache_path = self.cache_dir / f"{book_id}.json"
@@ -158,7 +156,7 @@ class LibraryManager:
         )
 
         return book
-    
+
     def _save_book_to_db(self, book: Book):
         """Save book to database."""
         with sqlite3.connect(self.db_path) as conn:
@@ -184,7 +182,7 @@ class LibraryManager:
                 str(book.cache_file_path) if book.cache_file_path else None,
                 json.dumps(book.to_dict()),
             ))
-            
+
             # Save chapters
             for i, chapter in enumerate(book.chapters):
                 conn.execute("""
@@ -198,14 +196,14 @@ class LibraryManager:
                     chapter.start_word_index,
                     chapter.end_word_index,
                 ))
-            
+
             conn.commit()
-    
-    def list_books(self, search: Optional[str] = None) -> List[Book]:
+
+    def list_books(self, search: str | None = None) -> list[Book]:
         """List all books in library."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
-            
+
             if search:
                 cursor = conn.execute(
                     """SELECT data FROM books 
@@ -218,30 +216,30 @@ class LibraryManager:
                     """SELECT data FROM books 
                        ORDER BY last_read_date DESC NULLS LAST, added_date DESC"""
                 )
-            
+
             books = []
             for row in cursor:
                 data = json.loads(row["data"])
                 books.append(Book.from_dict(data))
-            
+
             return books
-    
-    def get_book(self, book_id: str) -> Optional[Book]:
+
+    def get_book(self, book_id: str) -> Book | None:
         """Get book by ID."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
-            
+
             row = conn.execute(
                 "SELECT data FROM books WHERE id = ?",
                 (book_id,)
             ).fetchone()
-            
+
             if row:
                 data = json.loads(row["data"])
                 return Book.from_dict(data)
-            
+
             return None
-    
+
     def update_progress(self, book_id: str, word_index: int):
         """Update reading progress."""
         with sqlite3.connect(self.db_path) as conn:
@@ -271,7 +269,7 @@ class LibraryManager:
                     word_index,
                     book.word_count,
                 )
-    
+
     def delete_book(self, book_id: str):
         """Remove book from library."""
         with sqlite3.connect(self.db_path) as conn:
@@ -292,8 +290,8 @@ class LibraryManager:
                     cache_path.unlink()
 
         log.info("book.delete: book_id=%s", book_id)
-    
-    def load_words(self, book_id: str) -> List[str]:
+
+    def load_words(self, book_id: str) -> list[str]:
         """Load cached words for a book."""
         book = self.get_book(book_id)
         if not book or not book.cache_file_path:
@@ -313,20 +311,20 @@ class LibraryManager:
                 exc_info=True,
             )
             return []
-    
-    def get_statistics(self) -> Dict[str, Any]:
+
+    def get_statistics(self) -> dict[str, Any]:
         """Get library statistics."""
         with sqlite3.connect(self.db_path) as conn:
             total_books = conn.execute("SELECT COUNT(*) FROM books").fetchone()[0]
             total_words = conn.execute("SELECT SUM(word_count) FROM books").fetchone()[0] or 0
-            
+
             recently_read = conn.execute(
                 """SELECT title, current_word_index, word_count 
                    FROM books 
                    WHERE last_read_date IS NOT NULL
                    ORDER BY last_read_date DESC LIMIT 5"""
             ).fetchall()
-            
+
             return {
                 "total_books": total_books,
                 "total_words": total_words,

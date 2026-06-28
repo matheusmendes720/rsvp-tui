@@ -10,7 +10,6 @@ import pytest
 
 from rsvp_tui.util import atomic_write_text, safe_callback
 
-
 # ---- safe_callback -------------------------------------------------------
 
 

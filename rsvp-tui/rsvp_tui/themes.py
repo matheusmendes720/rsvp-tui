@@ -21,7 +21,6 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Iterable, List
 
 
 @dataclass(frozen=True)
@@ -73,7 +72,7 @@ class SolarizedTheme(Theme):
 # Theme table — add new themes here. ``id`` is the value stored in
 # ``Config.theme``; ``name`` is the human-readable label shown in the
 # SettingsScreen theme picker.
-THEMES: Dict[str, Theme] = {
+THEMES: dict[str, Theme] = {
     "dark": DarkTheme(
         id="dark",
         name="Dark (default)",
@@ -136,7 +135,7 @@ def default_theme() -> Theme:
     return THEMES["dark"]
 
 
-def all_themes() -> List[Theme]:
+def all_themes() -> list[Theme]:
     """Return all themes in registration order."""
     return list(THEMES.values())
 

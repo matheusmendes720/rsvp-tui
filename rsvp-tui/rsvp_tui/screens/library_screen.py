@@ -14,11 +14,10 @@ keybindings, search) without re-implementing the table widget.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.widgets import Header, Footer, Static
+from textual.widgets import Footer, Header, Static
 
 from ..models import Book, Config
 from ..widgets import LibraryView
@@ -50,9 +49,9 @@ class LibraryScreen(RSVPBaseScreen):
         Binding("ctrl+o", "app.open_file_explorer", "Open"),
     ]
 
-    def __init__(self, config: Optional[Config] = None) -> None:
+    def __init__(self, config: Config | None = None) -> None:
         super().__init__(config=config)
-        self._library_view: Optional[LibraryView] = None
+        self._library_view: LibraryView | None = None
 
     def compose(self) -> ComposeResult:
         """Compose header, library view, status line, and footer."""
@@ -106,7 +105,7 @@ class LibraryScreen(RSVPBaseScreen):
             self._on_file_selected_path,
         )
 
-    def _on_file_selected_path(self, path: Optional[str]) -> None:
+    def _on_file_selected_path(self, path: str | None) -> None:
         """Handle file selection from the explorer."""
         if not path:
             return

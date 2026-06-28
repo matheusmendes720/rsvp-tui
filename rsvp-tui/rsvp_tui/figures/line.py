@@ -13,15 +13,14 @@ dense academic prose.
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from rich.align import Align
-from rich.console import Group
 from rich.panel import Panel
 from rich.text import Text
 
 from ..themes import get_theme
-from .base import Figure, FigureState
+from .base import Figure
 
 
 class LineFigure(Figure):
@@ -31,7 +30,7 @@ class LineFigure(Figure):
     name = "Full Line"
     description = "Render a sentence slice; current word highlighted."
     default_keybinding = "3"
-    default_params: Dict[str, Any] = {
+    default_params: dict[str, Any] = {
         "wrap": True,
         "context_words": 5,
     }

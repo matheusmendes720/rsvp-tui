@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 
 from textual.binding import Binding
 from textual.screen import Screen
@@ -53,7 +52,7 @@ class RSVPBaseScreen(Screen):
         Binding("escape", "app.pop_screen", "Back"),
     ]
 
-    def __init__(self, config: Optional[Config] = None) -> None:
+    def __init__(self, config: Config | None = None) -> None:
         super().__init__()
         self._config = config
         log.debug("screen.init: %s", type(self).__name__)

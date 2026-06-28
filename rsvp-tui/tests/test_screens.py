@@ -32,7 +32,6 @@ from rsvp_tui.screens.messages import (
     FigureStateAdvanced,
 )
 
-
 # ---- new_ui_enabled --------------------------------------------------------
 
 

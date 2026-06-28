@@ -12,15 +12,12 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
-
 from rsvp_tui.cli import (
     ALIASES,
     COMMAND_GROUPS,
     RsvpGroup,
     cli,
 )
-
 
 # ---- Aliases registry ------------------------------------------------------
 
