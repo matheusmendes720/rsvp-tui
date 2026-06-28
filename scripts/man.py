@@ -11,16 +11,15 @@ Subcommands:
     uv run man --view       # render and pipe through `man -l -`
     uv run man --install    # render and copy to $MANPATH/man1/
 """
+
 from __future__ import annotations
 
 import argparse
 import os
 import shutil
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence
-
-from ._lib import MAN_DIR, ROOT, err, header, info, ok, warn
 
 # The actual page is hand-written in scripts/_man_template.py so we
 # get Python f-strings, conditionals, and triple-quoted sections
@@ -28,6 +27,7 @@ from ._lib import MAN_DIR, ROOT, err, header, info, ok, warn
 # also means the project banner, version, and key lists are pulled
 # from a single source of truth.
 from . import _man_template as tpl
+from ._lib import MAN_DIR, ROOT, err, header, info, ok, warn
 
 
 def _render() -> Path:
@@ -67,12 +67,10 @@ def _install(page: Path) -> int:
     return 1
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="uv run man")
-    p.add_argument("--view", action="store_true",
-                   help="Render and pipe through `man -l -`.")
-    p.add_argument("--install", action="store_true",
-                   help="Render and copy to $MANPATH/man1/.")
+    p.add_argument("--view", action="store_true", help="Render and pipe through `man -l -`.")
+    p.add_argument("--install", action="store_true", help="Render and copy to $MANPATH/man1/.")
     args = p.parse_args(list(argv or ()))
 
     header("man · render")

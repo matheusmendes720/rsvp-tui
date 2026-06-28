@@ -64,12 +64,28 @@ class BionicFigure(Figure):
             for offset in range(window, 0, -1):
                 idx = self.word_index - offset
                 if 0 <= idx < len(self._words):
-                    lines.append(Align.center(self._bionicize(self._words[idx], ratio=float(self.get_param("bold_ratio", 0.4)), dim=True)))
+                    lines.append(
+                        Align.center(
+                            self._bionicize(
+                                self._words[idx],
+                                ratio=float(self.get_param("bold_ratio", 0.4)),
+                                dim=True,
+                            )
+                        )
+                    )
             lines.append(Align.center(bold_word))
             for offset in range(1, window + 1):
                 idx = self.word_index + offset
                 if 0 <= idx < len(self._words):
-                    lines.append(Align.center(self._bionicize(self._words[idx], ratio=float(self.get_param("bold_ratio", 0.4)), dim=True)))
+                    lines.append(
+                        Align.center(
+                            self._bionicize(
+                                self._words[idx],
+                                ratio=float(self.get_param("bold_ratio", 0.4)),
+                                dim=True,
+                            )
+                        )
+                    )
             display: Any = Group(*lines)
         else:
             display = Align.center(bold_word)

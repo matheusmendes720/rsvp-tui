@@ -9,15 +9,16 @@ Exits non-zero if either tool reports a problem. Pass ``--fix`` to
 upgrade ``lint`` into ``format`` for the ruff side; for black you
 still need ``uv run format``.
 """
+
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
-from ._lib import ROOT, ensure, err, header, ok, run
+from ._lib import ROOT, ensure, header, ok, run
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     fix = "--fix" in args
     args = [a for a in args if a != "--fix"]
@@ -36,6 +37,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if fix:
         # ``format`` is the bigger hammer; defer to the format helper.
         from .format import main as fmt_main
+
         return fmt_main([])
 
     header("black --check")

@@ -50,7 +50,7 @@ class ChunkFigure(Figure):
             )
 
         chunk_size = max(1, int(self.get_param("chunk_size", 3)))
-        chunk = self._words[self.word_index: self.word_index + chunk_size]
+        chunk = self._words[self.word_index : self.word_index + chunk_size]
         if not chunk:
             return Panel(
                 Align.center(Text("(end)", style="dim")),

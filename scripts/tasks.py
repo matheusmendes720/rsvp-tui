@@ -4,40 +4,40 @@ Introspects the same ``[tool.uv.scripts]`` table we wrote into
 ``pyproject.toml`` so the help text here can't drift from the
 real surface.
 """
+
 from __future__ import annotations
 
-import sys
+from collections.abc import Sequence
+
 import tomllib
-from pathlib import Path
-from typing import Optional, Sequence
 
 from ._lib import PYPROJECT, ok
 
 _DESCRIPTIONS = {
-    "tui":        "Launch the interactive TUI (default)",
-    "read":       "Read a book by file path (alias: r)",
-    "import":     "Import a book into the library (alias: i)",
-    "library":    "Manage the book library (alias: ls)",
-    "config":     "Open the live settings UI",
-    "doctor":     "Diagnose the local install",
-    "themes":     "List the available themes",
-    "where":      "Show data directory paths",
-    "version":    "Show version, Python, and platform info",
-    "palette":    "Open the in-TUI command palette",
-    "demo":       "Launch the dependency-free standalone demo",
-    "build":      "Build the Rust extension + install the Python pkg",
-    "dev":        "Editable install (maturin develop --release)",
-    "sync":       "uv sync (optionally --rebuild the Rust ext)",
-    "clean":      "Remove build/, dist/, __pycache__, eggs, caches",
-    "test":       "Run the pytest suite (extras forwarded)",
-    "lint":       "ruff check + black --check",
-    "format":     "black + ruff --fix",
-    "typecheck":  "mypy --strict",
-    "verify":     "lint + typecheck + test (full quality gate)",
-    "docs":       "Build man page + snapshot CLI help",
-    "man":        "Render / view / install rsvp.1",
-    "bench":      "Run cargo benchmarks (Rust micro-benchmarks)",
-    "tasks":      "Print this task table",
+    "tui": "Launch the interactive TUI (default)",
+    "read": "Read a book by file path (alias: r)",
+    "import": "Import a book into the library (alias: i)",
+    "library": "Manage the book library (alias: ls)",
+    "config": "Open the live settings UI",
+    "doctor": "Diagnose the local install",
+    "themes": "List the available themes",
+    "where": "Show data directory paths",
+    "version": "Show version, Python, and platform info",
+    "palette": "Open the in-TUI command palette",
+    "demo": "Launch the dependency-free standalone demo",
+    "build": "Build the Rust extension + install the Python pkg",
+    "dev": "Editable install (maturin develop --release)",
+    "sync": "uv sync (optionally --rebuild the Rust ext)",
+    "clean": "Remove build/, dist/, __pycache__, eggs, caches",
+    "test": "Run the pytest suite (extras forwarded)",
+    "lint": "ruff check + black --check",
+    "format": "black + ruff --fix",
+    "typecheck": "mypy --strict",
+    "verify": "lint + typecheck + test (full quality gate)",
+    "docs": "Build man page + snapshot CLI help",
+    "man": "Render / view / install rsvp.1",
+    "bench": "Run cargo benchmarks (Rust micro-benchmarks)",
+    "tasks": "Print this task table",
 }
 
 
@@ -60,9 +60,10 @@ def _load() -> dict:
     return scripts
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     data = _load()
     scripts = dict(data)
+
     # Some workspaces declare scripts as ``rsvp-test`` while older
     # code expects ``test``; normalise the lookup so the table
     # renders for both layouts.

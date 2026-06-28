@@ -61,7 +61,7 @@ class PacerFigure(Figure):
         empty_char = str(self.get_param("empty_char", "○"))
         ratio = 0.0
         if self._words:
-            ratio = (self.word_index / max(1, len(self._words) - 1))
+            ratio = self.word_index / max(1, len(self._words) - 1)
         filled = int(round(ratio * (dot_count - 1)))
         dots: list[Text] = []
         for i in range(dot_count):

@@ -11,13 +11,13 @@ exit code so the failure is easy to spot.
   an advisory gate too. ``test`` remains a hard gate.
 * ``test`` is the **hard** gate. It must pass.
 """
+
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from ._lib import err, header
-
 from .test import main as test_main
 from .typecheck import main as typecheck_main
 
@@ -30,7 +30,7 @@ def _lint_advisory(_args=None) -> int:
     return lint_main([])
 
 
-_STAGES: list[tuple[str, "object", bool]] = [
+_STAGES: list[tuple[str, object, bool]] = [
     # (name, fn, is_hard_gate)
     # * is_hard_gate=True  → non-zero exit aborts the pipeline
     # * is_hard_gate=False → non-zero exit is logged, pipeline continues
@@ -40,7 +40,7 @@ _STAGES: list[tuple[str, "object", bool]] = [
 ]
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     for name, fn, is_hard_gate in _STAGES:
         header(f"verify · {name}")
@@ -55,4 +55,3 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -10,19 +10,20 @@ TUI) without first navigating. This helper:
 The actual screen lives in ``rsvp_tui.screens.command_palette``;
 we just import-and-push it so the wiring stays in one place.
 """
+
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
-from ._lib import RSVP_TUI, err, run
+from ._lib import RSVP_TUI, run
 
 # We import the app and the palette lazily so this module stays
 # cheap to load. The actual Textual run loop blocks until the user
 # exits the TUI.
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     # The shortest path: launch the TUI via the CLI and bind Ctrl+P
     # to push the palette. The palette is already triggered by the

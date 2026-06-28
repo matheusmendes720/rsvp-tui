@@ -35,14 +35,14 @@ class Theme:
     name: str
     primary: str
     accent: str
-    orp: str                # the ORP character's color
-    orp_anchor: str         # color of the letter anchored at the ORP position
-    focus_dim: str          # color for dimmed context words
-    muted: str              # color for helper / hint text
-    error: str              # error / danger color
-    success: str            # success / save color
-    border_active: str      # border when widget is active / playing
-    border_idle: str        # border when widget is idle
+    orp: str  # the ORP character's color
+    orp_anchor: str  # color of the letter anchored at the ORP position
+    focus_dim: str  # color for dimmed context words
+    muted: str  # color for helper / hint text
+    error: str  # error / danger color
+    success: str  # success / save color
+    border_active: str  # border when widget is active / playing
+    border_idle: str  # border when widget is idle
     background: str = "default"
     foreground: str = "default"
 
@@ -104,12 +104,12 @@ THEMES: dict[str, Theme] = {
     "solarized": SolarizedTheme(
         id="solarized",
         name="Solarized Dark",
-        primary="#268bd2",        # blue
-        accent="#d33682",         # magenta
-        orp="bold #dc322f",       # red
-        orp_anchor="#fdf6e3",     # base3
-        focus_dim="#586e75",      # base01
-        muted="#93a1a1",          # base1
+        primary="#268bd2",  # blue
+        accent="#d33682",  # magenta
+        orp="bold #dc322f",  # red
+        orp_anchor="#fdf6e3",  # base3
+        focus_dim="#586e75",  # base01
+        muted="#93a1a1",  # base1
         error="bold #dc322f",
         success="bold #859900",
         border_active="#b58900",

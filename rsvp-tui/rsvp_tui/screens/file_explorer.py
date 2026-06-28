@@ -146,9 +146,7 @@ class FileExplorerScreen(ModalScreen[str | None]):
                 path,
                 path.suffix,
             )
-            error_msg.update(
-                f"Unsupported format. Use: {', '.join(SUPPORTED_EXTENSIONS)}"
-            )
+            error_msg.update(f"Unsupported format. Use: {', '.join(SUPPORTED_EXTENSIONS)}")
             error_msg.add_class("visible")
             return
 

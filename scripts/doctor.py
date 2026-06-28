@@ -3,30 +3,28 @@
 A friendly wrapper around ``rsvp doctor`` that adds workspace-level
 info (git status, lockfile age, Rust toolchain) on top.
 """
+
 from __future__ import annotations
 
 import shutil
 import subprocess
 import sys
-from pathlib import Path
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 from ._lib import ROOT, RSVP_TUI, ensure, header, info, ok, run, warn
 
 
-def _git(args: List[str]) -> Optional[str]:
+def _git(args: list[str]) -> str | None:
     if shutil.which("git") is None:
         return None
     try:
-        out = subprocess.check_output(
-            ["git", *args], cwd=ROOT, stderr=subprocess.DEVNULL
-        )
+        out = subprocess.check_output(["git", *args], cwd=ROOT, stderr=subprocess.DEVNULL)
         return out.decode().strip()
     except subprocess.CalledProcessError:
         return None
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     ensure("git")
 

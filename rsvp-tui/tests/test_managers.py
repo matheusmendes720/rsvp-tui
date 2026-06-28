@@ -14,7 +14,7 @@ def test_note_manager_lifecycle(tmp_path):
         chapter_index=0,
         content="Testing notes",
         tags=["test"],
-        word_context="sample"
+        word_context="sample",
     )
     assert note.content == "Testing notes"
     assert mgr.get_note_count(book_id) == 1
@@ -32,6 +32,7 @@ def test_note_manager_lifecycle(tmp_path):
     mgr.delete_note(book_id, note.id)
     assert mgr.get_note_count(book_id) == 0
 
+
 def test_library_manager_db_init(tmp_path):
     db_path = tmp_path / "library.db"
     LibraryManager(db_path)
@@ -39,11 +40,13 @@ def test_library_manager_db_init(tmp_path):
 
     # Check if tables exist
     import sqlite3
+
     with sqlite3.connect(db_path) as conn:
         cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = [row[0] for row in cursor.fetchall()]
         assert "books" in tables
         assert "chapters" in tables
+
 
 def test_library_manager_import_markdown(tmp_path):
     db_path = tmp_path / "library.db"

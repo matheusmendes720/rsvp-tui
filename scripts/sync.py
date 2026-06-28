@@ -6,16 +6,17 @@ Re-runs ``uv pip install -e`` for both ``rsvp-tui`` and
 the install set. Pass ``--no-rebuild`` to skip the defensive
 re-install (e.g. when you only want a fresh dep set).
 """
+
 from __future__ import annotations
 
 import shutil
 import sys
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from ._lib import ROOT, ensure, info, ok, run
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     rebuild = "--no-rebuild" not in args
     args = [a for a in args if a != "--no-rebuild"]

@@ -172,9 +172,7 @@ class ConfigManager:
         """
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = self._serialize(cfg)
-        atomic_write_text(
-            self.path, json.dumps(payload, indent=2, ensure_ascii=False)
-        )
+        atomic_write_text(self.path, json.dumps(payload, indent=2, ensure_ascii=False))
 
     def update(self, cfg: Config, **patch: Any) -> Config:
         """Mutate fields on ``cfg`` and persist. Returns the same cfg."""

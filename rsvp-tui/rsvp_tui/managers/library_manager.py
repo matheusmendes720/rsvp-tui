@@ -20,6 +20,7 @@ class LibraryManager:
 
     def __init__(self, db_path: Path | None = None):
         from ..models import Config
+
         if db_path is None:
             config = Config.load()
             db_path = config.library_db_path
@@ -161,41 +162,47 @@ class LibraryManager:
         """Save book to database."""
         with sqlite3.connect(self.db_path) as conn:
             # Save book
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO books (
                     id, title, author, file_path, file_type, word_count,
                     current_word_index, current_chapter_index, added_date,
                     last_read_date, total_reading_time_seconds, cache_file_path, data
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                book.id,
-                book.title,
-                book.author,
-                str(book.file_path) if book.file_path else None,
-                book.file_type,
-                book.word_count,
-                book.current_word_index,
-                book.current_chapter_index,
-                book.added_date.isoformat(),
-                book.last_read_date.isoformat() if book.last_read_date else None,
-                book.total_reading_time_seconds,
-                str(book.cache_file_path) if book.cache_file_path else None,
-                json.dumps(book.to_dict()),
-            ))
+            """,
+                (
+                    book.id,
+                    book.title,
+                    book.author,
+                    str(book.file_path) if book.file_path else None,
+                    book.file_type,
+                    book.word_count,
+                    book.current_word_index,
+                    book.current_chapter_index,
+                    book.added_date.isoformat(),
+                    book.last_read_date.isoformat() if book.last_read_date else None,
+                    book.total_reading_time_seconds,
+                    str(book.cache_file_path) if book.cache_file_path else None,
+                    json.dumps(book.to_dict()),
+                ),
+            )
 
             # Save chapters
             for i, chapter in enumerate(book.chapters):
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT INTO chapters (
                         book_id, chapter_index, title, start_word_index, end_word_index
                     ) VALUES (?, ?, ?, ?, ?)
-                """, (
-                    book.id,
-                    i,
-                    chapter.title,
-                    chapter.start_word_index,
-                    chapter.end_word_index,
-                ))
+                """,
+                    (
+                        book.id,
+                        i,
+                        chapter.title,
+                        chapter.start_word_index,
+                        chapter.end_word_index,
+                    ),
+                )
 
             conn.commit()
 
@@ -209,13 +216,11 @@ class LibraryManager:
                     """SELECT data FROM books
                        WHERE title LIKE ? OR author LIKE ?
                        ORDER BY last_read_date DESC NULLS LAST, added_date DESC""",
-                    (f"%{search}%", f"%{search}%")
+                    (f"%{search}%", f"%{search}%"),
                 )
             else:
-                cursor = conn.execute(
-                    """SELECT data FROM books
-                       ORDER BY last_read_date DESC NULLS LAST, added_date DESC"""
-                )
+                cursor = conn.execute("""SELECT data FROM books
+                       ORDER BY last_read_date DESC NULLS LAST, added_date DESC""")
 
             books = []
             for row in cursor:
@@ -229,10 +234,7 @@ class LibraryManager:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
 
-            row = conn.execute(
-                "SELECT data FROM books WHERE id = ?",
-                (book_id,)
-            ).fetchone()
+            row = conn.execute("SELECT data FROM books WHERE id = ?", (book_id,)).fetchone()
 
             if row:
                 data = json.loads(row["data"])
@@ -260,7 +262,7 @@ class LibraryManager:
                         book.last_read_date.isoformat() if book.last_read_date else None,
                         json.dumps(book.to_dict()),
                         book_id,
-                    )
+                    ),
                 )
                 conn.commit()
                 log.debug(
@@ -275,8 +277,7 @@ class LibraryManager:
         with sqlite3.connect(self.db_path) as conn:
             # Get cache file path before deletion
             row = conn.execute(
-                "SELECT cache_file_path FROM books WHERE id = ?",
-                (book_id,)
+                "SELECT cache_file_path FROM books WHERE id = ?", (book_id,)
             ).fetchone()
 
             # Delete from database
@@ -318,12 +319,10 @@ class LibraryManager:
             total_books = conn.execute("SELECT COUNT(*) FROM books").fetchone()[0]
             total_words = conn.execute("SELECT SUM(word_count) FROM books").fetchone()[0] or 0
 
-            recently_read = conn.execute(
-                """SELECT title, current_word_index, word_count
+            recently_read = conn.execute("""SELECT title, current_word_index, word_count
                    FROM books
                    WHERE last_read_date IS NOT NULL
-                   ORDER BY last_read_date DESC LIMIT 5"""
-            ).fetchall()
+                   ORDER BY last_read_date DESC LIMIT 5""").fetchall()
 
             return {
                 "total_books": total_books,

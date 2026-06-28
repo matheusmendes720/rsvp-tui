@@ -28,6 +28,7 @@ Public API:
 New code should import directly from ``rsvp_tui.figures.*`` or
 ``rsvp_tui.widgets.*`` (only the non-deprecated names).
 """
+
 from __future__ import annotations
 
 import warnings
@@ -113,7 +114,9 @@ def __getattr__(name: str):
 
 
 def __dir__():
-    return sorted(list(globals().keys()) + list(_NON_DEPRECATED) + ["ReaderDisplay", "SettingsPanel"])
+    return sorted(
+        list(globals().keys()) + list(_NON_DEPRECATED) + ["ReaderDisplay", "SettingsPanel"]
+    )
 
 
 __all__ = [

@@ -58,9 +58,7 @@ def test_all_field_attrs_are_real_config_attrs():
     cfg = Config()
     for fld_list in (READING_FIELDS, DISPLAY_FIELDS, TIMING_FIELDS):
         for f in fld_list:
-            assert hasattr(cfg, f["attr"]), (
-                f"unknown Config attr: {f['attr']!r}"
-            )
+            assert hasattr(cfg, f["attr"]), f"unknown Config attr: {f['attr']!r}"
 
 
 def test_all_field_labels_nonempty():
@@ -75,9 +73,7 @@ def test_int_fields_have_bounds():
     for fld_list in (READING_FIELDS, DISPLAY_FIELDS, TIMING_FIELDS):
         for f in fld_list:
             if f["type"] in ("int", "float"):
-                assert f["lo"] <= f["hi"], (
-                    f"bad bounds on {f['attr']}: {f['lo']} > {f['hi']}"
-                )
+                assert f["lo"] <= f["hi"], f"bad bounds on {f['attr']}: {f['lo']} > {f['hi']}"
 
 
 def test_choice_fields_have_choices():
@@ -85,18 +81,14 @@ def test_choice_fields_have_choices():
     for fld_list in (READING_FIELDS, DISPLAY_FIELDS, TIMING_FIELDS):
         for f in fld_list:
             if f["type"] == "choice":
-                assert len(f["choices"]) >= 1, (
-                    f"empty choices for {f['attr']}"
-                )
+                assert len(f["choices"]) >= 1, f"empty choices for {f['attr']}"
                 for value, label in f["choices"]:
                     assert value and label
 
 
 def test_figure_id_choice_matches_registry():
     """The default-figure choice is in sync with the registry."""
-    choice = next(
-        f for f in DISPLAY_FIELDS if f["attr"] == "figure_id"
-    )
+    choice = next(f for f in DISPLAY_FIELDS if f["attr"] == "figure_id")
     from rsvp_tui.figures import default_registry
 
     registry_ids = {f.id for f in default_registry().all()}
@@ -106,9 +98,7 @@ def test_figure_id_choice_matches_registry():
 
 def test_theme_choice_matches_themes():
     """The theme choice is in sync with the themes module."""
-    choice = next(
-        f for f in DISPLAY_FIELDS if f["attr"] == "theme"
-    )
+    choice = next(f for f in DISPLAY_FIELDS if f["attr"] == "theme")
     from rsvp_tui.themes import all_themes
 
     theme_ids = set(all_themes())

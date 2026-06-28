@@ -37,9 +37,7 @@ def test_no_alias_collides_with_canonical_name():
     (otherwise it shadows itself)."""
     registered = set(cli.commands)
     for alias in ALIASES:
-        assert alias not in registered, (
-            f"alias {alias!r} collides with a registered command"
-        )
+        assert alias not in registered, f"alias {alias!r} collides with a registered command"
 
 
 def test_no_two_aliases_share_target_unnecessarily():
@@ -81,9 +79,7 @@ def test_every_registered_command_is_in_some_group():
     missing = registered - in_groups
     # We only WARN about drift — the group still works. The
     # ``list_commands`` impl handles the rest.
-    assert not missing, (
-        f"registered commands not in COMMAND_GROUPS: {missing}"
-    )
+    assert not missing, f"registered commands not in COMMAND_GROUPS: {missing}"
 
 
 def test_command_groups_have_unique_commands():
@@ -91,9 +87,7 @@ def test_command_groups_have_unique_commands():
     seen: dict = {}
     for cat, cmds in COMMAND_GROUPS:
         for c in cmds:
-            assert c not in seen, (
-                f"command {c!r} in both {seen[c]!r} and {cat!r}"
-            )
+            assert c not in seen, f"command {c!r} in both {seen[c]!r} and {cat!r}"
             seen[c] = cat
 
 

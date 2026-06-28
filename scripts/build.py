@@ -10,32 +10,35 @@ the workspace root skips the workspace members. Pass ``--no-rust``
 to skip the Rust rebuild (e.g. when iterating on Python and the
 binary is already importable).
 """
+
 from __future__ import annotations
 
 import argparse
 import subprocess
 import sys
-from pathlib import Path
-from typing import List, Optional
 
-from ._lib import ROOT, RSVP_CORE, ensure, err, header, info, ok, run
+from ._lib import ROOT, RSVP_CORE, ensure, err, header, info, ok, run, warn
 
 
-def _parse(argv: Optional[List[str]]) -> argparse.Namespace:
+def _parse(argv: list[str] | None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         prog="uv run rsvp-build",
         description="Build the RSVP Rust extension and install the Python package.",
     )
     p.add_argument(
-        "--editable", "-e", action="store_true",
+        "--editable",
+        "-e",
+        action="store_true",
         help="Editable install (maturin develop) — default for `uv run rsvp-dev`.",
     )
     p.add_argument(
-        "--no-rust", action="store_true",
+        "--no-rust",
+        action="store_true",
         help="Skip the Rust rebuild; assume the binary is already importable.",
     )
     p.add_argument(
-        "--debug", action="store_true",
+        "--debug",
+        action="store_true",
         help="Build with cargo profile=debug (faster, slower Python).",
     )
     return p.parse_args(list(argv or ()))
@@ -80,8 +83,8 @@ def _build_rust_cli() -> None:
     binary is missing — ``cargo build --release`` is fast on
     an incremental build.
     """
-    import shutil
     import platform
+    import shutil
 
     rsvp_cli = ROOT / "rsvp-cli"
     if not (rsvp_cli / "Cargo.toml").exists():
@@ -106,7 +109,7 @@ def _build_rust_cli() -> None:
         warn("cargo build of rsvp-cli failed; the binary will be unavailable")
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     args = _parse(argv)
     header("RSVP build")
     if args.editable:
@@ -135,7 +138,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         # on PATH inside the venv. The ``--uv`` flag tells it to
         # forward the install step to ``uv pip`` so the binary
         # lands in the correct venv.
-        cmd: List[str] = [sys.executable, "-m", "maturin", "develop", "--release", "--uv"]
+        cmd: list[str] = [sys.executable, "-m", "maturin", "develop", "--release", "--uv"]
         if args.editable:
             pass  # ``--uv`` is the editable-friendly form already
         if args.debug:

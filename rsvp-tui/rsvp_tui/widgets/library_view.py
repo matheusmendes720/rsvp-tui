@@ -74,11 +74,7 @@ class LibraryView(Vertical):
 
         for book in self.books:
             progress = f"{book.completion_percentage:.0f}%"
-            last_read = (
-                book.last_read_date.strftime("%Y-%m-%d")
-                if book.last_read_date
-                else "Never"
-            )
+            last_read = book.last_read_date.strftime("%Y-%m-%d") if book.last_read_date else "Never"
 
             table.add_row(
                 book.title,

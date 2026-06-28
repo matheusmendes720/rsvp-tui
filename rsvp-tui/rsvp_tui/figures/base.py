@@ -176,9 +176,7 @@ class Figure(Static):
         ``NotImplementedError`` so a missing override fails loudly
         at render time rather than producing silent empty output.
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} must override render()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must override render()")
 
     # ---- Parameter & state updates -------------------------------------
 
@@ -244,7 +242,12 @@ class Figure(Static):
         if self.word_index < len(self._words) - 1:
             prev = self.word_index
             self.word_index += 1
-            telemetry.word_advance(figure_id=self.id, word=self._current_word(), word_index=self.word_index, wpm=self.wpm)
+            telemetry.word_advance(
+                figure_id=self.id,
+                word=self._current_word(),
+                word_index=self.word_index,
+                wpm=self.wpm,
+            )
             log.debug("Figure %s: next_word %d -> %d", self.id, prev, self.word_index)
 
     def prev_word(self) -> None:
@@ -264,7 +267,9 @@ class Figure(Static):
             prev_pct = (self.word_index / len(self._words)) * 100
             index = int((percentage / 100.0) * len(self._words))
             self.jump_to(index)
-            log.info("Figure %s: jump_to_percentage %.1f%% (was %.1f%%)", self.id, percentage, prev_pct)
+            log.info(
+                "Figure %s: jump_to_percentage %.1f%% (was %.1f%%)", self.id, percentage, prev_pct
+            )
 
     # ---- Speed ----------------------------------------------------------
 
@@ -299,7 +304,9 @@ class Figure(Static):
         if self._words and index >= len(self._words):
             self.is_playing = False
             log.info("Figure %s: reading complete at word_index=%d", self.id, index)
-            telemetry.reading_complete(figure_id=self.id, final_index=index, total_words=len(self._words))
+            telemetry.reading_complete(
+                figure_id=self.id, final_index=index, total_words=len(self._words)
+            )
             if self._on_complete is not None:
                 try:
                     self._on_complete()

@@ -8,6 +8,7 @@ from pathlib import Path
 @dataclass
 class WordParts:
     """Word parts for display."""
+
     before_orp: str
     orp_char: str
     after_orp: str
@@ -16,6 +17,7 @@ class WordParts:
 @dataclass
 class Chapter:
     """Chapter information."""
+
     title: str
     start_word_index: int
     end_word_index: int
@@ -25,6 +27,7 @@ class Chapter:
 @dataclass
 class ParseResult:
     """Parse result."""
+
     title: str
     author: str
     plain_text: str
@@ -39,20 +42,20 @@ def tokenize_text(text: str) -> list[str]:
 
 def split_into_sentences(text: str) -> list[str]:
     """Split text into sentences."""
-    pattern = r'[.!?]+\s+'
+    pattern = r"[.!?]+\s+"
     sentences = re.split(pattern, text)
     return [s.strip() for s in sentences if s.strip()]
 
 
 def normalize_whitespace(text: str) -> str:
     """Normalize whitespace."""
-    return re.sub(r'\s+', ' ', text).strip()
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def extract_words_with_positions(text: str) -> list[tuple[str, int, int]]:
     """Extract words with positions."""
     words = []
-    for match in re.finditer(r'\b\w+\b', text):
+    for match in re.finditer(r"\b\w+\b", text):
         words.append((match.group(), match.start(), match.end()))
     return words
 
@@ -80,7 +83,7 @@ def calculate_reading_complexity(text: str) -> float:
 def count_syllables(word: str) -> int:
     """Count syllables in a word."""
     word = word.lower()
-    vowels = 'aeiouy'
+    vowels = "aeiouy"
     count = 0
     prev_vowel = False
 
@@ -90,7 +93,7 @@ def count_syllables(word: str) -> int:
             count += 1
         prev_vowel = is_vowel
 
-    if word.endswith('e') and count > 1:
+    if word.endswith("e") and count > 1:
         count -= 1
 
     return max(count, 1)
@@ -119,7 +122,7 @@ def parse_plain_text(text: str) -> ParseResult:
 
 def parse_markdown(text: str) -> ParseResult:
     """Simple markdown parser."""
-    lines = text.split('\n')
+    lines = text.split("\n")
     chapters = []
     current_content = []
     current_title = "Chapter 1"
@@ -127,17 +130,19 @@ def parse_markdown(text: str) -> ParseResult:
     all_words = []
 
     for line in lines:
-        if line.startswith('# '):
+        if line.startswith("# "):
             # Save previous chapter
             if current_content:
-                content = ' '.join(current_content)
+                content = " ".join(current_content)
                 words = tokenize_text(content)
-                chapters.append(Chapter(
-                    title=current_title,
-                    start_word_index=start_idx,
-                    end_word_index=start_idx + len(words),
-                    content=content,
-                ))
+                chapters.append(
+                    Chapter(
+                        title=current_title,
+                        start_word_index=start_idx,
+                        end_word_index=start_idx + len(words),
+                        content=content,
+                    )
+                )
                 all_words.extend(words)
                 start_idx += len(words)
 
@@ -151,18 +156,20 @@ def parse_markdown(text: str) -> ParseResult:
 
     # Final chapter
     if current_content:
-        content = ' '.join(current_content)
+        content = " ".join(current_content)
         words = tokenize_text(content)
-        chapters.append(Chapter(
-            title=current_title,
-            start_word_index=start_idx,
-            end_word_index=start_idx + len(words),
-            content=content,
-        ))
+        chapters.append(
+            Chapter(
+                title=current_title,
+                start_word_index=start_idx,
+                end_word_index=start_idx + len(words),
+                content=content,
+            )
+        )
         all_words.extend(words)
 
-    full_text = ' '.join(all_words)
-    title = lines[0][2:].strip() if lines and lines[0].startswith('# ') else "Untitled"
+    full_text = " ".join(all_words)
+    title = lines[0][2:].strip() if lines and lines[0].startswith("# ") else "Untitled"
 
     return ParseResult(
         title=title,
@@ -176,11 +183,11 @@ def parse_markdown(text: str) -> ParseResult:
 def clean_markdown_line(line: str) -> str:
     """Clean markdown formatting."""
     # Remove emphasis markers
-    for marker in ['**', '*', '__', '_', '~~', '`']:
-        line = line.replace(marker, '')
+    for marker in ["**", "*", "__", "_", "~~", "`"]:
+        line = line.replace(marker, "")
 
     # Simple link removal
-    line = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', line)
+    line = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", line)
 
     return line.strip()
 
@@ -193,6 +200,7 @@ def parse_epub_bytes(data: bytes) -> ParseResult:
         raise NotImplementedError("EPUB parsing requires ebooklib: pip install ebooklib") from None
 
     from io import BytesIO
+
     try:
         book = epub.read_epub(BytesIO(data))
     except Exception:
@@ -239,23 +247,26 @@ def _parse_epub_book(book) -> ParseResult:
                 content = item.get_content()
                 if content:
                     import re
-                    text = re.sub(r'<[^>]+>', ' ', str(content))
-                    text = re.sub(r'\s+', ' ', text).strip()
+
+                    text = re.sub(r"<[^>]+>", " ", str(content))
+                    text = re.sub(r"\s+", " ", text).strip()
                     if text:
                         all_text.append(text)
             except Exception:
                 pass
 
-    full_text = ' '.join(all_text)
+    full_text = " ".join(all_text)
     words = full_text.split()
 
     chapters = []
     if words:
-        chapters.append(Chapter(
-            title=title,
-            start_word_index=0,
-            end_word_index=len(words) - 1,
-        ))
+        chapters.append(
+            Chapter(
+                title=title,
+                start_word_index=0,
+                end_word_index=len(words) - 1,
+            )
+        )
 
     return ParseResult(
         title=title,
@@ -273,6 +284,7 @@ def parse_pdf_bytes(data: bytes) -> ParseResult:
         raise NotImplementedError("PDF parsing requires pymupdf: pip install pymupdf") from None
 
     from io import BytesIO
+
     doc = fitz.open(stream=BytesIO(data), filetype="pdf")
     return _parse_pdf_doc(doc)
 
@@ -312,16 +324,18 @@ def _parse_pdf_doc(doc) -> ParseResult:
 
     doc.close()
 
-    full_text = ' '.join(all_text)
+    full_text = " ".join(all_text)
     words = full_text.split()
 
     chapters = []
     if words:
-        chapters.append(Chapter(
-            title=title,
-            start_word_index=0,
-            end_word_index=len(words) - 1,
-        ))
+        chapters.append(
+            Chapter(
+                title=title,
+                start_word_index=0,
+                end_word_index=len(words) - 1,
+            )
+        )
 
     return ParseResult(
         title=title,
@@ -345,6 +359,7 @@ def calculate_orp_index(word: str) -> int:
         return 3
     else:
         import math
+
         return int(math.log2(letters - 1)) + 1
 
 
@@ -365,7 +380,7 @@ def split_word_for_display(word: str, orp_index: int) -> WordParts:
 
     before = word[:actual_idx]
     orp_char = word[actual_idx] if actual_idx < len(word) else ""
-    after = word[actual_idx + 1:] if actual_idx < len(word) else ""
+    after = word[actual_idx + 1 :] if actual_idx < len(word) else ""
 
     return WordParts(before, orp_char, after)
 
@@ -431,7 +446,7 @@ def is_unusual(word: str) -> bool:
     if len(word) > 12:
         return True
 
-    unusual = ['xx', 'qq', 'zz', 'jj', 'kk']
+    unusual = ["xx", "qq", "zz", "jj", "kk"]
     return any(p in word for p in unusual)
 
 
@@ -442,7 +457,7 @@ def generate_reading_heatmap_data(words: list[str], window_size: int) -> list[fl
 
     heatmap = []
     for i in range(0, len(words), window_size):
-        window = words[i:i + window_size]
+        window = words[i : i + window_size]
         avg_len = sum(len(w) for w in window) / len(window)
         heatmap.append(min(avg_len / 10, 1.0))
 

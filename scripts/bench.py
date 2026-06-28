@@ -38,13 +38,14 @@ Notes on what the benchmark actually measures:
   This is the operation called on every word during reading,
   so it dominates the per-word latency budget.
 """
+
 from __future__ import annotations
 
 import argparse
 import math
 import statistics
 import time
-from typing import Callable, List, Tuple
+from collections.abc import Callable
 
 from ._lib import header, info, ok, warn
 
@@ -75,7 +76,7 @@ def _make_text(words: int) -> str:
     return " ".join(text.split()[:words])
 
 
-def _bench(label: str, fn: Callable[[str], object], text: str, rounds: int) -> Tuple[str, float]:
+def _bench(label: str, fn: Callable[[str], object], text: str, rounds: int) -> tuple[str, float]:
     """Run ``fn(text)`` ``rounds`` times, return ``(label, best_ms)``.
 
     We report the *best* of N rather than the mean: in CI
@@ -83,7 +84,7 @@ def _bench(label: str, fn: Callable[[str], object], text: str, rounds: int) -> T
     that swamps the actual speedup. Best-of-N is the standard
     practice for micro-benchmarks.
     """
-    times_ms: List[float] = []
+    times_ms: list[float] = []
     for _ in range(rounds):
         t0 = time.perf_counter()
         result = fn(text)
@@ -109,18 +110,24 @@ def _safe_call(label: str, fn, text: str, rounds: int):
         return (label, float("nan"), float("nan"))
 
 
-def main(argv: List[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="uv run rsvp-bench")
     p.add_argument(
-        "--words", type=int, default=100_000,
+        "--words",
+        type=int,
+        default=100_000,
         help="Number of words to tokenise (default: 100,000)",
     )
     p.add_argument(
-        "--rounds", type=int, default=3,
+        "--rounds",
+        type=int,
+        default=3,
         help="Number of rounds per benchmark; best of N is reported (default: 3)",
     )
     p.add_argument(
-        "--op", choices=["tokenize", "orp", "all"], default="all",
+        "--op",
+        choices=["tokenize", "orp", "all"],
+        default="all",
         help="Which operation to benchmark (default: all)",
     )
     args = p.parse_args(argv)
@@ -134,8 +141,10 @@ def main(argv: List[str] | None = None) -> int:
 
     # ---- Python fallback benchmarks -----------------------------------
     from rsvp_tui.fallbacks import (
-        tokenize_text as py_tokenize,
         calculate_orp_index as py_orp,
+    )
+    from rsvp_tui.fallbacks import (
+        tokenize_text as py_tokenize,
     )
 
     py_tokenize_res = ("tokenize_text (Python)", float("nan"), float("nan"))
@@ -145,16 +154,24 @@ def main(argv: List[str] | None = None) -> int:
 
     if args.op in ("tokenize", "all"):
         py_tokenize_res = _safe_call(
-            "tokenize_text (Python)", py_tokenize, text, args.rounds,
+            "tokenize_text (Python)",
+            py_tokenize,
+            text,
+            args.rounds,
         )
     if args.op in ("orp", "all"):
         # ORP is per-word, so generate a small list of unique
         # words and bench the whole pass.
         unique_words = list(dict.fromkeys(text.split()))[:5000]
+
         def _py_orp_pass(words):
             return [py_orp(w) for w in words]
+
         py_orp_res = _safe_call(
-            "calculate_orp_index (Python)", _py_orp_pass, unique_words, args.rounds,
+            "calculate_orp_index (Python)",
+            _py_orp_pass,
+            unique_words,
+            args.rounds,
         )
 
     # ---- Rust core benchmarks -----------------------------------------
@@ -163,14 +180,22 @@ def main(argv: List[str] | None = None) -> int:
 
         if args.op in ("tokenize", "all"):
             rust_tokenize_res = _safe_call(
-                "tokenize_text (Rust)", rust.tokenize_text, text, args.rounds,
+                "tokenize_text (Rust)",
+                rust.tokenize_text,
+                text,
+                args.rounds,
             )
         if args.op in ("orp", "all"):
             unique_words = list(dict.fromkeys(text.split()))[:5000]
+
             def _rust_orp_pass(words):
                 return [rust.calculate_orp_index(w) for w in words]
+
             rust_orp_res = _safe_call(
-                "calculate_orp_index (Rust)", _rust_orp_pass, unique_words, args.rounds,
+                "calculate_orp_index (Rust)",
+                _rust_orp_pass,
+                unique_words,
+                args.rounds,
             )
     except ImportError:
         warn("rsvp_core not importable; Rust benchmarks will be skipped")
@@ -187,7 +212,11 @@ def main(argv: List[str] | None = None) -> int:
             # Find the matching Rust row (same operation, different impl).
             op = label.split(" (")[0]
             for other_label, other_best, _ in rows:
-                if other_label.startswith(op) and "Rust" in other_label and not math.isnan(other_best):
+                if (
+                    other_label.startswith(op)
+                    and "Rust" in other_label
+                    and not math.isnan(other_best)
+                ):
                     speedup = f"{best / other_best:.1f}x"
                     break
         print(f"  {label:<{width}}  {best:>8.2f} ms  {mean:>8.2f} ms  {speedup:>8}")

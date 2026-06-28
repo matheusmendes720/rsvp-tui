@@ -28,6 +28,7 @@ try:
         split_word_for_display,
         tokenize_text,
     )
+
     RUST_AVAILABLE = True
 except ImportError:
     RUST_AVAILABLE = False
@@ -49,6 +50,7 @@ except ImportError:
         split_word_for_display,
         tokenize_text,
     )
+
     # Create placeholder classes (only when Rust not available)
     class ParseResult:
         def __init__(self, title, author, plain_text):
@@ -81,6 +83,7 @@ except ImportError:
             self.author = author
             self.language = language
             self.description = description
+
 
 # Aliases for path-based parsing (not in rsvp_core, always available from fallbacks)
 from .fallbacks import parse_epub_path, parse_pdf_path  # noqa: E402

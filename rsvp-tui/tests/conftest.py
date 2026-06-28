@@ -1,4 +1,3 @@
-
 import pytest
 
 from rsvp_tui.models import Book, Chapter, Config
@@ -15,6 +14,7 @@ def mock_config(tmp_path):
     config.notes_dir.mkdir(parents=True, exist_ok=True)
     config.cache_dir.mkdir(parents=True, exist_ok=True)
     return config
+
 
 @pytest.fixture
 def sample_book():

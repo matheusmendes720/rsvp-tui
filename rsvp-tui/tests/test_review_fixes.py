@@ -59,9 +59,7 @@ def test_config_manager_save_delegates_to_atomic_write_text(tmp_path, monkeypatc
         calls.append((str(path), content))
         return real_atomic(path, content, **kwargs)
 
-    monkeypatch.setattr(
-        "rsvp_tui.managers.config_manager.atomic_write_text", spy
-    )
+    monkeypatch.setattr("rsvp_tui.managers.config_manager.atomic_write_text", spy)
 
     cfg = Config()
     cfg.config_path = target
@@ -165,10 +163,10 @@ def test_watch_word_index_swallows_app_property_error():
 @pytest.mark.parametrize(
     "input_wpm, expected",
     [
-        (0, 50),       # zero -> lower bound
-        (-100, 50),    # negative -> lower bound
-        (1, 50),       # too slow -> lower bound
-        (300, 300),    # in range
+        (0, 50),  # zero -> lower bound
+        (-100, 50),  # negative -> lower bound
+        (1, 50),  # too slow -> lower bound
+        (300, 300),  # in range
         (9999, 1500),  # too fast -> upper bound (matches Config.max_wpm)
     ],
 )
@@ -200,9 +198,12 @@ def test_make_param_widget_signature_is_stable():
 
     sig = inspect.signature(SettingsScreen._make_param_widget)
     params = list(sig.parameters)
-    assert params == ["self", "fig_id", "key", "current"], (
-        f"SettingsScreen._make_param_widget signature changed: {params}"
-    )
+    assert params == [
+        "self",
+        "fig_id",
+        "key",
+        "current",
+    ], f"SettingsScreen._make_param_widget signature changed: {params}"
 
 
 def test_advp_id_format_starts_with_prefix():

@@ -21,6 +21,7 @@ This keeps the warning honest (it fires when the deprecated
 API is actually being used) instead of being a passive tax on
 every test that touches the widgets package.
 """
+
 from __future__ import annotations
 
 import warnings

@@ -17,6 +17,7 @@ class NoteManager:
 
     def __init__(self, notes_dir: Path | None = None):
         from ..models import Config
+
         if notes_dir is None:
             config = Config.load()
             notes_dir = config.notes_dir
@@ -98,10 +99,7 @@ class NoteManager:
         """Get notes near a specific position."""
         notes = self._load_notes_for_book(book_id)
 
-        return [
-            n for n in notes
-            if abs(n.word_index - word_index) <= context_window
-        ]
+        return [n for n in notes if abs(n.word_index - word_index) <= context_window]
 
     def update_note(self, book_id: str, note_id: str, content: str) -> Note | None:
         """Update an existing note."""
@@ -159,7 +157,8 @@ class NoteManager:
         query = query.lower()
 
         return [
-            n for n in notes
+            n
+            for n in notes
             if query in n.content.lower() or any(query in t.lower() for t in n.tags)
         ]
 

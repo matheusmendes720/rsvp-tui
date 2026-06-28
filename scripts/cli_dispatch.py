@@ -15,17 +15,17 @@ Why a Python wrapper instead of a direct console script:
     even when the Rust binary hasn't been built yet (e.g. on a
     fresh ``uv sync``), so the help text is always accessible.
 """
+
 from __future__ import annotations
 
-import os
 import platform
 import shutil
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence
 
-from ._lib import ROOT, err, info, ok, run, warn
+from ._lib import ROOT, err, info, run
 
 # Conventional release-build path. The build helper in
 # scripts/build.py puts the binary here.
@@ -38,7 +38,7 @@ _RSVP_CLI_RELEASE = (
 )
 
 
-def _find_binary() -> Optional[Path]:
+def _find_binary() -> Path | None:
     """Locate the Rust CLI binary.
 
     Search order:
@@ -77,16 +77,13 @@ def _build_binary() -> bool:
     return proc.returncode == 0 and _RSVP_CLI_RELEASE.exists()
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     # ``--help`` / ``-h`` / no args: print help without needing
     # the binary to be present.
     if not args or "--help" in args or "-h" in args:
         info("rsvp-cli — native Rust CLI (clap + ratatui)")
-        info(
-            "The rsvp-cli binary lives at:\n"
-            f"  {_RSVP_CLI_RELEASE}\n"
-        )
+        info("The rsvp-cli binary lives at:\n" f"  {_RSVP_CLI_RELEASE}\n")
         info("Build it with: uv run rsvp-build-rust  (or: cargo build --release -p rsvp-cli)")
         info("Then run:        uv run rsvp-cli --help")
         # Try the binary anyway so the user sees the canonical

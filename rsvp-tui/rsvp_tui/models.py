@@ -14,6 +14,7 @@ CURRENT_SCHEMA_VERSION = 3
 
 class FileType(str, Enum):
     """Supported file types."""
+
     PDF = "pdf"
     EPUB = "epub"
     MARKDOWN = "md"
@@ -23,6 +24,7 @@ class FileType(str, Enum):
 @dataclass
 class Chapter:
     """Represents a chapter or section of a book."""
+
     title: str
     start_word_index: int
     end_word_index: int
@@ -48,6 +50,7 @@ class Chapter:
 @dataclass
 class Book:
     """Represents a book or document."""
+
     id: str
     title: str
     author: str = "Unknown"
@@ -136,8 +139,16 @@ class Book:
             chapters=chapters,
             current_word_index=data.get("current_word_index", 0),
             current_chapter_index=data.get("current_chapter_index", 0),
-            added_date=datetime.fromisoformat(data["added_date"]) if data.get("added_date") else datetime.now(),
-            last_read_date=datetime.fromisoformat(data["last_read_date"]) if data.get("last_read_date") else None,
+            added_date=(
+                datetime.fromisoformat(data["added_date"])
+                if data.get("added_date")
+                else datetime.now()
+            ),
+            last_read_date=(
+                datetime.fromisoformat(data["last_read_date"])
+                if data.get("last_read_date")
+                else None
+            ),
             total_reading_time_seconds=data.get("total_reading_time_seconds", 0),
             cache_file_path=Path(data["cache_file_path"]) if data.get("cache_file_path") else None,
         )
@@ -146,6 +157,7 @@ class Book:
 @dataclass
 class Note:
     """Represents a note linked to a reading position."""
+
     id: str
     book_id: str
     word_index: int
@@ -202,6 +214,7 @@ class Note:
 @dataclass
 class ReadingSession:
     """Represents an active reading session."""
+
     book_id: str
     start_time: datetime = field(default_factory=datetime.now)
     current_word_index: int = 0
@@ -227,6 +240,7 @@ class ReadingSession:
 @dataclass
 class SessionStats:
     """Statistics for a reading session."""
+
     duration_seconds: int
     words_read: int
     average_wpm: float

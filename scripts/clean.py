@@ -12,15 +12,15 @@ Removes (in this order, never anything outside the workspace):
 
 Use ``--all`` to also remove ``.venv/`` and the lock file.
 """
+
 from __future__ import annotations
 
 import argparse
 import shutil
-import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import List, Optional, Sequence
 
-from ._lib import ROOT, err, info, ok, run, warn
+from ._lib import ROOT, info, ok, warn
 
 TARGETS = [
     "rsvp-tui/build",
@@ -48,23 +48,28 @@ def _rm(p: Path) -> None:
             warn(f"could not remove {p}: {e}")
 
 
-def _walk_pycache(root: Path) -> List[Path]:
+def _walk_pycache(root: Path) -> list[Path]:
     return [p for p in root.rglob("__pycache__") if p.is_dir()]
 
 
-def _walk_pyc(root: Path) -> List[Path]:
+def _walk_pyc(root: Path) -> list[Path]:
     return [p for p in root.rglob("*.pyc") if p.is_file()]
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="uv run clean")
-    p.add_argument("--all", action="store_true",
-                   help="Also remove .venv/ and uv.lock (full reset).")
-    p.add_argument("--dry-run", "-n", action="store_true",
-                   help="Print what would be removed, but do not delete.")
+    p.add_argument(
+        "--all", action="store_true", help="Also remove .venv/ and uv.lock (full reset)."
+    )
+    p.add_argument(
+        "--dry-run",
+        "-n",
+        action="store_true",
+        help="Print what would be removed, but do not delete.",
+    )
     args = p.parse_args(list(argv or ()))
 
-    targets: List[Path] = [(ROOT / t) for t in TARGETS]
+    targets: list[Path] = [(ROOT / t) for t in TARGETS]
     targets += _walk_pycache(ROOT)
     targets += _walk_pyc(ROOT)
     if args.all:

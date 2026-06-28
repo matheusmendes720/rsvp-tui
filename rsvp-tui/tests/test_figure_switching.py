@@ -127,9 +127,7 @@ class _FakeFigure(Figure):
 @pytest.fixture
 def fifty_word_state():
     """Reusable 50-word state for figure swap tests."""
-    return FigureState(
-        words=tuple(f"w{i}" for i in range(50)), word_index=10, wpm=300
-    )
+    return FigureState(words=tuple(f"w{i}" for i in range(50)), word_index=10, wpm=300)
 
 
 def test_fake_figure_pause_increments_counter(fifty_word_state):

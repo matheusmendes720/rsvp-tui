@@ -1,9 +1,9 @@
 """``uv run demo`` — launch the dependency-free standalone demo."""
+
 from __future__ import annotations
 
 import sys
-from pathlib import Path
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from ._lib import ROOT, err, run
 
@@ -12,7 +12,7 @@ from ._lib import ROOT, err, run
 DEMO = ROOT / "demo_tui.py"
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     if not DEMO.exists():
         err(f"demo not found at {DEMO}")
         return 1

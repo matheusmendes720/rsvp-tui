@@ -71,6 +71,7 @@ _telemetry_logger: logging.Logger | None = None
 # Public API
 # -------------------------------------------------------------------
 
+
 def init_logging(
     config: object | None = None,
     *,
@@ -178,6 +179,7 @@ def shutdown_logging() -> None:
 # Internal helpers
 # -------------------------------------------------------------------
 
+
 def _resolve_level(level: str | None, config: object | None) -> str:
     """Return the effective log level string."""
     if level:
@@ -257,6 +259,7 @@ def _fmt_value(v) -> str:
 # a logging.Logger with extra contextual fields injected).
 # -------------------------------------------------------------------
 
+
 class LoggingMixin:
     """Mix-in that adds a ``log`` attribute to any class.
 
@@ -299,14 +302,19 @@ class Telemetry:
 
     def book_close(self, book_id: str, final_index: int, total_words: int) -> None:
         _t_emit(
-            event="book.close", book_id=book_id,
-            final_index=final_index, total_words=total_words,
+            event="book.close",
+            book_id=book_id,
+            final_index=final_index,
+            total_words=total_words,
         )
 
     def book_import(self, book_id: str, title: str, file_type: str, word_count: int) -> None:
         _t_emit(
-            event="book.import", book_id=book_id,
-            title=title, file_type=file_type, word_count=word_count,
+            event="book.import",
+            book_id=book_id,
+            title=title,
+            file_type=file_type,
+            word_count=word_count,
         )
 
     def book_complete(self, book_id: str) -> None:
@@ -374,9 +382,7 @@ class Telemetry:
 
     # ---- Chapters --------------------------------------------------------
 
-    def chapter_nav(
-        self, book_id: str, from_chapter: int, to_chapter: int
-    ) -> None:
+    def chapter_nav(self, book_id: str, from_chapter: int, to_chapter: int) -> None:
         _t_emit(
             event="chapter.nav",
             book_id=book_id,

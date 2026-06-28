@@ -8,15 +8,16 @@ Extra args are forwarded to pytest, so you can do:
     uv run test tests/test_models.py -x
     uv run test --cov=rsvp_tui
 """
+
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
-from ._lib import ROOT, ensure, err, info, run
+from ._lib import ROOT, ensure, info, run
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     ensure("pytest")
     info(f"pytest {ROOT / 'rsvp-tui' / 'tests'}")

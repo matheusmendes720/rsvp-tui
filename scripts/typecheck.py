@@ -1,13 +1,14 @@
 """``uv run rsvp-typecheck`` — mypy --strict."""
+
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from ._lib import ensure, run
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     ensure("mypy")
     return run(
@@ -21,7 +22,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             *args,
         ],
         cwd=None,  # use the workspace root so mypy finds the
-                    # exclude list and resolves the path filters
+        # exclude list and resolves the path filters
     )
 
 

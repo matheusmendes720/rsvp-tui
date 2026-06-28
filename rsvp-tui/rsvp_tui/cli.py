@@ -99,9 +99,7 @@ class RsvpGroup(click.Group):
                 cmd = self.get_command(ctx, name)
                 if cmd is None or getattr(cmd, "hidden", False):
                     continue
-                rows.append(
-                    (category, name, cmd.get_short_help_str(limit=60) or "")
-                )
+                rows.append((category, name, cmd.get_short_help_str(limit=60) or ""))
         if not rows:
             return
         # Group by category, print a section per category.
@@ -115,9 +113,7 @@ class RsvpGroup(click.Group):
             # want a bit more room for the longer command names.
             formatter.write_text(f"  {name:<14} {help_text}")
 
-    def format_epilog(
-        self, ctx: click.Context, formatter: click.HelpFormatter
-    ) -> None:
+    def format_epilog(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         """Print a quickstart epilog and shell-completion hint."""
         # Click's ``write_text`` does not add newlines; the epilog
         # needs explicit ``\n`` separators or the lines run
@@ -132,8 +128,8 @@ class RsvpGroup(click.Group):
             "  rsvp doctor       Diagnose the install\n"
             "\n"
             "Shell completion:\n"
-            "  eval \"$(_RSVP_COMPLETE=bash_source rsvp)\"   # bash\n"
-            "  eval \"$(_RSVP_COMPLETE=zsh_source rsvp)\"    # zsh\n"
+            '  eval "$(_RSVP_COMPLETE=bash_source rsvp)"   # bash\n'
+            '  eval "$(_RSVP_COMPLETE=zsh_source rsvp)"    # zsh\n'
         )
         for block in epilog.split("\n\n"):
             formatter.write_paragraph()
@@ -160,12 +156,8 @@ def cli(ctx: click.Context) -> None:
 
 @cli.command()
 @click.argument("file_path", type=click.Path(exists=True, path_type=Path))
-@click.option(
-    "--wpm", "-w", type=int, default=None, help="Override reading speed in WPM"
-)
-@click.option(
-    "--word", "-p", type=int, default=0, help="Start at word position"
-)
+@click.option("--wpm", "-w", type=int, default=None, help="Override reading speed in WPM")
+@click.option("--word", "-p", type=int, default=0, help="Start at word position")
 @click.option("--focus", "-f", is_flag=True, help="Start in focus mode")
 def read(
     file_path: Path,
@@ -195,6 +187,7 @@ def read(
         app.run()
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.read", exc)
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
@@ -217,6 +210,7 @@ def import_(file_path: Path) -> None:
         click.echo(f"  Chapters:  {len(book.chapters)}")
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.import_", exc)
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
@@ -234,6 +228,7 @@ def library(list_books: bool, search: str | None) -> None:
             books = library.list_books(search=search)
         except Exception as exc:
             from .logging_ import telemetry_error
+
             telemetry_error("cli.library.list_books", exc)
             click.echo(f"Error listing books: {exc}", err=True)
             sys.exit(1)
@@ -254,6 +249,7 @@ def library(list_books: bool, search: str | None) -> None:
         app.run()
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.library.app_run", exc)
         raise
 
@@ -267,6 +263,7 @@ def remove(book_id: str) -> None:
         library = LibraryManager(config.library_db_path)
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.remove.config", exc)
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
@@ -274,6 +271,7 @@ def remove(book_id: str) -> None:
         book = library.get_book(book_id)
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.remove.get_book", exc)
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
@@ -286,6 +284,7 @@ def remove(book_id: str) -> None:
             click.echo("Book deleted.")
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.remove.delete", exc)
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
@@ -300,6 +299,7 @@ def stats(book_id: str) -> None:
         library = LibraryManager(config.library_db_path)
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.stats.config", exc)
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
@@ -307,6 +307,7 @@ def stats(book_id: str) -> None:
         book = library.get_book(book_id)
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.stats.get_book", exc)
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
@@ -346,6 +347,7 @@ def config() -> None:
         app.run()
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.config.app_run", exc)
         raise
 
@@ -379,13 +381,12 @@ def doctor() -> None:
         report["book_count"] = len(library.list_books())
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.doctor", exc)
         report["book_count_error"] = str(exc)
     click.echo(json.dumps(report, indent=2))
     healthy = (
-        report["config_exists"]
-        and report["library_exists"]
-        and "book_count_error" not in report
+        report["config_exists"] and report["library_exists"] and "book_count_error" not in report
     )
     sys.exit(0 if healthy else 1)
 
@@ -405,6 +406,7 @@ def themes() -> None:
             click.echo(f"{marker} {t.id:<10} {t.name}")
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.themes", exc)
         raise
 
@@ -431,11 +433,10 @@ def where() -> None:
             p = Path(path)
             marker = "✓" if p.exists() else "·"
             click.echo(f"  {marker} {label:<14} {p}")
-        click.echo(
-            "\nTo override, set RSVP_HOME to a directory of your choice."
-        )
+        click.echo("\nTo override, set RSVP_HOME to a directory of your choice.")
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.where", exc)
         raise
 
@@ -457,6 +458,7 @@ def version() -> None:
         click.echo(f"  {'config_path':<14} {cfg.config_path}")
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.version", exc)
         raise
 
@@ -483,6 +485,7 @@ def main() -> None:
         sys.exit(130)
     except Exception as exc:
         from .logging_ import telemetry_error
+
         telemetry_error("cli.main", exc)
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)

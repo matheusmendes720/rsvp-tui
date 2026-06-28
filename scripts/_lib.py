@@ -3,14 +3,15 @@
 Centralises path discovery, coloured logging, and subprocess
 invocation so each helper stays small and readable.
 """
+
 from __future__ import annotations
 
 import os
 import shutil
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence
 
 # The workspace root is the parent of the ``scripts/`` package.
 ROOT: Path = Path(__file__).resolve().parent.parent
@@ -63,9 +64,9 @@ def header(title: str) -> None:
 def run(
     cmd: Sequence[str],
     *,
-    cwd: Optional[Path] = None,
+    cwd: Path | None = None,
     check: bool = True,
-    env: Optional[dict] = None,
+    env: dict | None = None,
     stream: bool = True,
 ) -> int:
     """Run ``cmd``; print a friendly header; return exit code.
@@ -92,7 +93,7 @@ def have(cmd: str) -> bool:
     return shutil.which(cmd) is not None
 
 
-def ensure(*tools: str) -> List[str]:
+def ensure(*tools: str) -> list[str]:
     """Warn about any missing tools. Returns the list of missing names."""
     missing = [t for t in tools if not have(t)]
     if missing:

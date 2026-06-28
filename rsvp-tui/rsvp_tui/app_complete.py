@@ -55,10 +55,12 @@ try:
     from .managers.library_manager import LibraryManager
     from .managers.note_manager import NoteManager
     from .models import Book, Config
+
     IMPORT_OK = True
 except ImportError as _exc:
     # Fallback imports for direct script execution
     import traceback as _tb
+
     sys.stderr.write(f"[app_complete] import error: {_exc}\n{_tb.format_exc()}\n")
     # Re-raise so the failure is visible rather than silent
     raise
@@ -67,6 +69,7 @@ except ImportError as _exc:
 # =============================================================================
 # RSVP DISPLAY WIDGET
 # =============================================================================
+
 
 class RSVPWordDisplay(Static):
     """Widget that displays RSVP words with ORP highlighting."""
@@ -92,7 +95,7 @@ class RSVPWordDisplay(Static):
         self.total_words = len(words)
         self._timer: Timer | None = None
         self.punctuation_multiplier = 2.0
-        self.pause_chars = ['.', '!', '?', ';', ':']
+        self.pause_chars = [".", "!", "?", ";", ":"]
         self.on_word_change = None
         self.on_complete = None
 
@@ -101,7 +104,7 @@ class RSVPWordDisplay(Static):
         if not self.words or self.word_index >= len(self.words):
             return Panel(
                 Align.center(Text("Reading Complete! Press 'r' to restart.", style="dim green")),
-                border_style="green"
+                border_style="green",
             )
 
         self.current_word = self.words[self.word_index]
@@ -125,10 +128,7 @@ class RSVPWordDisplay(Static):
 
         # Combine
         content = Text.assemble(
-            Text("\n"),
-            Align.center(word_text),
-            Text("\n"),
-            Align.center(status)
+            Text("\n"), Align.center(word_text), Text("\n"), Align.center(status)
         )
 
         border = "red" if self.is_playing else "blue"
@@ -177,10 +177,7 @@ class RSVPWordDisplay(Static):
             return
 
         delay = calculate_word_delay(
-            self.current_word,
-            self.wpm,
-            self.punctuation_multiplier,
-            self.pause_chars
+            self.current_word, self.wpm, self.punctuation_multiplier, self.pause_chars
         )
 
         self._timer = self.set_timer(delay / 1000, self._advance)
@@ -226,6 +223,7 @@ class RSVPWordDisplay(Static):
 # =============================================================================
 # LIBRARY SCREEN
 # =============================================================================
+
 
 class LibraryScreen(Screen):
     """Screen for browsing and managing the book library."""
@@ -281,7 +279,9 @@ class LibraryScreen(Screen):
 
             for book in books:
                 progress = f"{book.completion_percentage:.0f}%"
-                last_read = book.last_read_date.strftime("%Y-%m-%d") if book.last_read_date else "Never"
+                last_read = (
+                    book.last_read_date.strftime("%Y-%m-%d") if book.last_read_date else "Never"
+                )
 
                 table.add_row(
                     book.title[:40],
@@ -290,7 +290,7 @@ class LibraryScreen(Screen):
                     last_read,
                     f"{book.word_count:,}",
                     book.file_type.upper(),
-                    key=book.id
+                    key=book.id,
                 )
         except Exception as exc:
             telemetry_error("app_complete.LibraryScreen._load_books", exc)
@@ -337,6 +337,7 @@ class LibraryScreen(Screen):
 # =============================================================================
 # READER SCREEN
 # =============================================================================
+
 
 class ReaderScreen(Screen):
     """Screen for RSVP reading."""
@@ -420,11 +421,11 @@ class ReaderScreen(Screen):
         """Parse file to extract words."""
         try:
             suffix = path.suffix.lower()
-            if suffix == '.md':
-                result = parse_markdown(path.read_text(encoding='utf-8'))
-            elif suffix == '.txt':
-                result = parse_plain_text(path.read_text(encoding='utf-8'))
-            elif suffix == '.epub':
+            if suffix == ".md":
+                result = parse_markdown(path.read_text(encoding="utf-8"))
+            elif suffix == ".txt":
+                result = parse_plain_text(path.read_text(encoding="utf-8"))
+            elif suffix == ".epub":
                 result = parse_epub_bytes(path.read_bytes())
             else:
                 return
@@ -434,6 +435,7 @@ class ReaderScreen(Screen):
             # Cache words
             if self.book.cache_file_path:
                 import json
+
                 self.book.cache_file_path.write_text(json.dumps(self.words))
 
         except Exception as e:
@@ -462,9 +464,7 @@ class ReaderScreen(Screen):
             return
 
         notes = self.note_manager.get_notes_for_position(
-            self.book.id,
-            self.rsvp_display.word_index,
-            context_window=50
+            self.book.id, self.rsvp_display.word_index, context_window=50
         )
 
         notes_widget = self.query_one("#notes-list", Static)
@@ -561,13 +561,19 @@ class ReaderScreen(Screen):
         """Open add note dialog."""
         if self.rsvp_display:
             try:
-                self.app.push_screen(AddNoteScreen(
-                    self.book.id,
-                    self.rsvp_display.word_index,
-                    self.words[self.rsvp_display.word_index] if self.rsvp_display.word_index < len(self.words) else "",
-                    self.note_manager,
-                    self
-                ))
+                self.app.push_screen(
+                    AddNoteScreen(
+                        self.book.id,
+                        self.rsvp_display.word_index,
+                        (
+                            self.words[self.rsvp_display.word_index]
+                            if self.rsvp_display.word_index < len(self.words)
+                            else ""
+                        ),
+                        self.note_manager,
+                        self,
+                    )
+                )
             except Exception as exc:
                 telemetry_error("app_complete.ReaderScreen.action_add_note", exc)
                 self.notify(f"Error adding note: {exc}", severity="error")
@@ -604,11 +610,19 @@ class ReaderScreen(Screen):
 # ADD NOTE SCREEN
 # =============================================================================
 
+
 class AddNoteScreen(ModalScreen):
     """Modal screen for adding a note."""
 
-    def __init__(self, book_id: str, word_index: int, word_context: str,
-                 note_manager: NoteManager, reader_screen: ReaderScreen, **kwargs):
+    def __init__(
+        self,
+        book_id: str,
+        word_index: int,
+        word_context: str,
+        note_manager: NoteManager,
+        reader_screen: ReaderScreen,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.book_id = book_id
         self.word_index = word_index
@@ -642,7 +656,7 @@ class AddNoteScreen(ModalScreen):
                     chapter_index=0,
                     content=content,
                     tags=tags,
-                    word_context=self.word_context
+                    word_context=self.word_context,
                 )
                 self.reader_screen._update_notes_display()
                 self.dismiss()
@@ -656,6 +670,7 @@ class AddNoteScreen(ModalScreen):
 # =============================================================================
 # IMPORT SCREEN
 # =============================================================================
+
 
 class ImportScreen(ModalScreen):
     """Modal screen for importing a book."""
@@ -697,10 +712,13 @@ class ImportScreen(ModalScreen):
 # CONFIRM DELETE SCREEN
 # =============================================================================
 
+
 class ConfirmDeleteScreen(ModalScreen):
     """Modal screen to confirm book deletion."""
 
-    def __init__(self, book: Book, library: LibraryManager, library_screen: LibraryScreen, **kwargs):
+    def __init__(
+        self, book: Book, library: LibraryManager, library_screen: LibraryScreen, **kwargs
+    ):
         super().__init__(**kwargs)
         self.book = book
         self.library = library
@@ -730,6 +748,7 @@ class ConfirmDeleteScreen(ModalScreen):
 # =============================================================================
 # MAIN APPLICATION
 # =============================================================================
+
 
 class RSVPTUI(App):
     """Main RSVP TUI Application."""
@@ -851,6 +870,7 @@ class RSVPTUI(App):
 # =============================================================================
 # ENTRY POINT
 # =============================================================================
+
 
 def main():
     """Run the application."""

@@ -1,6 +1,5 @@
 """Progress bar widget for reading progress."""
 
-
 from rich.panel import Panel
 from rich.text import Text
 from textual.reactive import reactive
@@ -47,7 +46,9 @@ class ProgressBar(Static):
         bar = "█" * filled + "░" * (bar_width - filled)
 
         # Build info line
-        info = f"Word {self.current_word:,}/{self.total_words:,} ({percentage:.1f}%) • {self.wpm} WPM"
+        info = (
+            f"Word {self.current_word:,}/{self.total_words:,} ({percentage:.1f}%) • {self.wpm} WPM"
+        )
         if self.time_remaining:
             info += f" • ~{self.time_remaining} remaining"
 

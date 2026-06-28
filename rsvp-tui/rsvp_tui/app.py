@@ -462,9 +462,7 @@ class RSVPApp(App):
             return
         self.current_book = book
         self.words = words
-        self.push_screen(
-            ReaderScreen(book=book, words=words, config=self.config)
-        )
+        self.push_screen(ReaderScreen(book=book, words=words, config=self.config))
         log.info(
             "book.open: id=%s title=%r word_count=%d",
             book.id,
@@ -518,9 +516,7 @@ class RSVPApp(App):
             return
         book = self.library_manager.get_book(message.book_id)
         if book is not None:
-            self.library_manager.update_progress(
-                message.book_id, book.word_count
-            )
+            self.library_manager.update_progress(message.book_id, book.word_count)
         self.notify("Reading complete!")
         log.info(
             "book.complete: book_id=%s",

@@ -67,9 +67,7 @@ def _bool_field(attr: str, label: str) -> dict[str, Any]:
     return {"attr": attr, "label": label, "type": "bool"}
 
 
-def _choice_field(
-    attr: str, label: str, choices: list[tuple[str, str]]
-) -> dict[str, Any]:
+def _choice_field(attr: str, label: str, choices: list[tuple[str, str]]) -> dict[str, Any]:
     """``choices`` is a list of ``(value, label)`` tuples."""
     return {"attr": attr, "label": label, "type": "choice", "choices": choices}
 
@@ -88,9 +86,7 @@ DISPLAY_FIELDS: list[dict[str, Any]] = [
     _bool_field("focus_mode", "Start in Focus Mode"),
     _bool_field("show_progress_bar", "Show Progress Bar"),
     _bool_field("show_context_words", "Show Context Words"),
-    _choice_field(
-        "theme", "Theme", [(t, t) for t in all_themes()]
-    ),
+    _choice_field("theme", "Theme", [(t, t) for t in all_themes()]),
     _choice_field(
         "figure_id",
         "Default Figure",
@@ -225,9 +221,7 @@ class SettingsScreen(ModalScreen[None]):
         # apply them. Maps attr -> error message.
         self._errors: dict[str, str] = {}
         # Snapshot for the per-figure params tab.
-        self._figure_params: dict[str, dict[str, Any]] = dict(
-            self._config.figure_params or {}
-        )
+        self._figure_params: dict[str, dict[str, Any]] = dict(self._config.figure_params or {})
 
     # ---- Compose --------------------------------------------------------
 
@@ -236,21 +230,13 @@ class SettingsScreen(ModalScreen[None]):
             yield Label("Settings", id="settings-title")
             with TabbedContent(initial="tab-reading"):
                 with TabPane("Reading", id="tab-reading"):
-                    yield VerticalScroll(
-                        *self._build_fields(READING_FIELDS)
-                    )
+                    yield VerticalScroll(*self._build_fields(READING_FIELDS))
                 with TabPane("Display & Theme", id="tab-display"):
-                    yield VerticalScroll(
-                        *self._build_fields(DISPLAY_FIELDS)
-                    )
+                    yield VerticalScroll(*self._build_fields(DISPLAY_FIELDS))
                 with TabPane("Timing", id="tab-timing"):
-                    yield VerticalScroll(
-                        *self._build_fields(TIMING_FIELDS)
-                    )
+                    yield VerticalScroll(*self._build_fields(TIMING_FIELDS))
                 with TabPane("Navigation", id="tab-navigation"):
-                    yield VerticalScroll(
-                        *self._build_fields(NAVIGATION_FIELDS)
-                    )
+                    yield VerticalScroll(*self._build_fields(NAVIGATION_FIELDS))
                 with TabPane("Input", id="tab-input"):
                     yield Static(
                         "Key remapping is not yet exposed in the UI.\n"
@@ -276,9 +262,7 @@ class SettingsScreen(ModalScreen[None]):
             current = getattr(self._config, attr)
             widgets.append(Label(label, classes="field-label"))
             if f["type"] == "bool":
-                widgets.append(
-                    Checkbox(label, value=bool(current), id=f"fld-{attr}")
-                )
+                widgets.append(Checkbox(label, value=bool(current), id=f"fld-{attr}"))
             elif f["type"] == "choice":
                 widgets.append(
                     Select(
@@ -343,9 +327,7 @@ class SettingsScreen(ModalScreen[None]):
         """
         if self._debounce_timer is not None:
             self._debounce_timer.stop()
-        self._debounce_timer = self.set_timer(
-            self.DEBOUNCE_MS / 1000.0, self._apply_now
-        )
+        self._debounce_timer = self.set_timer(self.DEBOUNCE_MS / 1000.0, self._apply_now)
 
     def _apply_now(self) -> None:
         """Flush all current form values to ``Config`` and emit."""
@@ -421,7 +403,7 @@ class SettingsScreen(ModalScreen[None]):
         """Validate on every keystroke; debounce apply."""
         wid = event.input.id or ""
         if wid.startswith("fld-"):
-            attr = wid[len("fld-"):]
+            attr = wid[len("fld-") :]
             result = event.input.validation_result
             if result is not None and not result.is_valid:
                 errors = result.failure_descriptions
@@ -448,14 +430,10 @@ class SettingsScreen(ModalScreen[None]):
         if not fig_id or not key:
             return
         try:
-            self._figure_params.setdefault(fig_id, {})[key] = int(
-                event.input.value
-            )
+            self._figure_params.setdefault(fig_id, {})[key] = int(event.input.value)
         except ValueError:
             try:
-                self._figure_params.setdefault(fig_id, {})[key] = float(
-                    event.input.value
-                )
+                self._figure_params.setdefault(fig_id, {})[key] = float(event.input.value)
             except ValueError:
                 self._figure_params.setdefault(fig_id, {})[key] = event.input.value
         self._schedule_apply()
@@ -464,7 +442,7 @@ class SettingsScreen(ModalScreen[None]):
         """Apply on checkbox change."""
         wid = event.checkbox.id or ""
         if wid.startswith("fld-"):
-            attr = wid[len("fld-"):]
+            attr = wid[len("fld-") :]
             self._clear_field_error(attr)
             self._schedule_apply()
             return
@@ -473,16 +451,14 @@ class SettingsScreen(ModalScreen[None]):
             key = getattr(event.checkbox, "param_key", None)
             if not fig_id or not key:
                 return
-            self._figure_params.setdefault(fig_id, {})[key] = bool(
-                event.checkbox.value
-            )
+            self._figure_params.setdefault(fig_id, {})[key] = bool(event.checkbox.value)
             self._schedule_apply()
 
     def on_select_changed(self, event: Select.Changed) -> None:
         """Apply on choice change; switch figure on the advanced tab."""
         wid = event.select.id or ""
         if wid.startswith("fld-"):
-            attr = wid[len("fld-"):]
+            attr = wid[len("fld-") :]
             self._clear_field_error(attr)
             self._schedule_apply()
         elif wid == "adv-figure":
@@ -545,9 +521,7 @@ class SettingsScreen(ModalScreen[None]):
         current.update(self._figure_params.get(fig_id, {}))
 
         if not current:
-            container.mount(
-                Static(f"Figure '{fig.name}' has no tunable parameters.")
-            )
+            container.mount(Static(f"Figure '{fig.name}' has no tunable parameters."))
             return
 
         container.mount(Label(f"Parameters for {fig.name}:"))

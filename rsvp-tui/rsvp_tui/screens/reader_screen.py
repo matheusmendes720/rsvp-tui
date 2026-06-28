@@ -313,7 +313,9 @@ class ReaderScreen(RSVPBaseScreen):
                 setattr(self.config, field, getattr(fresh, field))
 
         # Apply to active figure without remounting.
-        if self._figure is not None and ("default_wpm" in message.keys or "wpm_step" in message.keys):
+        if self._figure is not None and (
+            "default_wpm" in message.keys or "wpm_step" in message.keys
+        ):
             self._figure.set_wpm(self.config.default_wpm)
             if self._progress is not None:
                 self._progress.set_wpm(self.config.default_wpm)
@@ -569,6 +571,7 @@ class ReaderScreen(RSVPBaseScreen):
     def _set_wpm(self, wpm: int) -> None:
         """Update default_wpm in config and reflect in the figure."""
         from ..managers.config_manager import ConfigManager
+
         manager = ConfigManager()
         manager.update(default_wpm=wpm)
         self.config.default_wpm = wpm
@@ -581,6 +584,7 @@ class ReaderScreen(RSVPBaseScreen):
     def _set_theme(self, theme: str) -> None:
         """Update theme in config (refresh picks it up on next push)."""
         from ..managers.config_manager import ConfigManager
+
         manager = ConfigManager()
         manager.update(theme=theme)
         self.config.theme = theme

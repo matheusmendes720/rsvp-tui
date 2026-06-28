@@ -29,9 +29,7 @@ log = logging.getLogger(__name__)
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-def safe_callback(
-    default: Any = None, *, log_traceback: bool = True
-) -> Callable[[F], F]:
+def safe_callback(default: Any = None, *, log_traceback: bool = True) -> Callable[[F], F]:
     """Decorator: run a callback, swallow exceptions, return ``default``.
 
     On exception we:
@@ -47,6 +45,7 @@ def safe_callback(
     where a stray ``KeyError`` in an event handler should not
     brick the whole app — the user just sees a toast and moves on.
     """
+
     def deco(fn: F) -> F:
         @functools.wraps(fn)
         def wrapper(self, *args, **kwargs):
@@ -94,9 +93,7 @@ def atomic_write_text(path, content: str, *, encoding: str = "utf-8") -> None:
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=path.name + ".", suffix=".tmp", dir=str(path.parent)
-    )
+    fd, tmp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
     try:
         with os.fdopen(fd, "w", encoding=encoding) as f:
             f.write(content)
