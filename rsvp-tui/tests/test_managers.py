@@ -34,7 +34,7 @@ def test_note_manager_lifecycle(tmp_path):
 
 def test_library_manager_db_init(tmp_path):
     db_path = tmp_path / "library.db"
-    mgr = LibraryManager(db_path)
+    LibraryManager(db_path)
     assert db_path.exists()
 
     # Check if tables exist

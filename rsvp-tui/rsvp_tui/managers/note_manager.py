@@ -171,4 +171,4 @@ class NoteManager:
         for note in notes:
             tags.update(note.tags)
 
-        return sorted(list(tags))
+        return sorted(tags)

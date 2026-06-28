@@ -136,7 +136,7 @@ def _t_emit(**kwargs: Any) -> None:
     # The 'event' key is the primary discriminator.
     event_name = kwargs.pop("event", "unknown")
     # Pack remaining fields into a flat dict message.
-    msg = "event=%s %s" % (
+    msg = "event={} {}".format(
         event_name,
         " ".join(f"{k}={_fmt_value(v)!r}" for k, v in sorted(kwargs.items())),
     )

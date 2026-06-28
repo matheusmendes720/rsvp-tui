@@ -15,6 +15,7 @@ error handling without changing every call site.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import logging
 import os
@@ -116,10 +117,8 @@ def atomic_write_text(path, content: str, *, encoding: str = "utf-8") -> None:
         os.replace(tmp_name, path)
     except Exception:
         # Clean up the tmp file on failure.
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(tmp_name)
-        except OSError:
-            pass
         raise
 
 

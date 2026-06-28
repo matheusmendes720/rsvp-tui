@@ -20,15 +20,15 @@ assert len(WORDS_50) == 50
 
 
 def make_state(**overrides):
-    defaults = dict(
-        words=tuple(WORDS_50),
-        word_index=10,
-        wpm=300,
-        is_playing=False,
-        punctuation_multiplier=2.0,
-        pause_chars=(".", "!", "?", ";", ":"),
-        comma_pause_multiplier=1.5,
-    )
+    defaults = {
+        "words": tuple(WORDS_50),
+        "word_index": 10,
+        "wpm": 300,
+        "is_playing": False,
+        "punctuation_multiplier": 2.0,
+        "pause_chars": (".", "!", "?", ";", ":"),
+        "comma_pause_multiplier": 1.5,
+    }
     defaults.update(overrides)
     return FigureState(**defaults)
 

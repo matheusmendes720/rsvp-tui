@@ -206,14 +206,14 @@ class LibraryManager:
 
             if search:
                 cursor = conn.execute(
-                    """SELECT data FROM books 
+                    """SELECT data FROM books
                        WHERE title LIKE ? OR author LIKE ?
                        ORDER BY last_read_date DESC NULLS LAST, added_date DESC""",
                     (f"%{search}%", f"%{search}%")
                 )
             else:
                 cursor = conn.execute(
-                    """SELECT data FROM books 
+                    """SELECT data FROM books
                        ORDER BY last_read_date DESC NULLS LAST, added_date DESC"""
                 )
 
@@ -319,8 +319,8 @@ class LibraryManager:
             total_words = conn.execute("SELECT SUM(word_count) FROM books").fetchone()[0] or 0
 
             recently_read = conn.execute(
-                """SELECT title, current_word_index, word_count 
-                   FROM books 
+                """SELECT title, current_word_index, word_count
+                   FROM books
                    WHERE last_read_date IS NOT NULL
                    ORDER BY last_read_date DESC LIMIT 5"""
             ).fetchall()

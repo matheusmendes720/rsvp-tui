@@ -97,10 +97,7 @@ class StatsFigure(Figure):
 
     def _build_eta(self) -> Text:
         remaining = max(0, len(self._words) - self.word_index)
-        if self.wpm <= 0:
-            eta_minutes = 0.0
-        else:
-            eta_minutes = remaining / max(1, self.wpm)
+        eta_minutes = 0.0 if self.wpm <= 0 else remaining / max(1, self.wpm)
         eta_text = Text()
         eta_text.append(f"ETA: {eta_minutes:0.1f} min  ", style=self._theme.muted)
         eta_text.append(f"Remaining: {remaining} words  ", style=self._theme.muted)
