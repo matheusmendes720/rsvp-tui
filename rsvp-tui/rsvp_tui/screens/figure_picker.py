@@ -13,7 +13,6 @@ the picker survives a figure swap (no parent state pollution).
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -26,7 +25,7 @@ from ..figures import default_registry
 log = logging.getLogger(__name__)
 
 
-class FigurePickerScreen(ModalScreen[Optional[str]]):
+class FigurePickerScreen(ModalScreen[str | None]):
     """Pick a figure from the registry.
 
     Use ``push_screen(FigurePickerScreen(), callback)``; the callback

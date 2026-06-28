@@ -313,11 +313,10 @@ class ReaderScreen(RSVPBaseScreen):
                 setattr(self.config, field, getattr(fresh, field))
 
         # Apply to active figure without remounting.
-        if self._figure is not None:
-            if "default_wpm" in message.keys or "wpm_step" in message.keys:
-                self._figure.set_wpm(self.config.default_wpm)
-                if self._progress is not None:
-                    self._progress.set_wpm(self.config.default_wpm)
+        if self._figure is not None and ("default_wpm" in message.keys or "wpm_step" in message.keys):
+            self._figure.set_wpm(self.config.default_wpm)
+            if self._progress is not None:
+                self._progress.set_wpm(self.config.default_wpm)
 
     # ---- Actions ---------------------------------------------------------
 

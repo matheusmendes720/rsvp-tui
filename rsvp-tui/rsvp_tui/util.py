@@ -69,16 +69,11 @@ def safe_callback(
                 # yet (e.g. during compose), ``app`` may be None.
                 app = getattr(self, "app", None)
                 if app is not None and hasattr(app, "notify"):
-                    try:
+                    with contextlib.suppress(Exception):
                         app.notify(
                             f"Something went wrong: {exc}",
                             severity="error",
                         )
-                    except Exception:
-                        # If even the notify fails, we've already
-                        # logged the original exception. Don't
-                        # let a secondary failure mask it.
-                        pass
                 return default
 
         return wrapper  # type: ignore[return-value]
@@ -106,14 +101,12 @@ def atomic_write_text(path, content: str, *, encoding: str = "utf-8") -> None:
         with os.fdopen(fd, "w", encoding=encoding) as f:
             f.write(content)
             f.flush()
-            try:
-                os.fsync(f.fileno())
-            except OSError:
+            with contextlib.suppress(OSError):
                 # Some filesystems (e.g. Windows network shares)
                 # don't support fsync. The atomic replace still
                 # gives us crash-safety; just lose the durability
                 # guarantee on those filesystems.
-                pass
+                os.fsync(f.fileno())
         os.replace(tmp_name, path)
     except Exception:
         # Clean up the tmp file on failure.

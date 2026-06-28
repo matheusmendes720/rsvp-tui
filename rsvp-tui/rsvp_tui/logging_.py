@@ -58,6 +58,7 @@ import os
 import sys
 import traceback
 from pathlib import Path
+from typing import Any
 
 # The rsvp hierarchy — every rsvp_tui module should get a logger child of this.
 _RSVP_ROOT = "rsvp"

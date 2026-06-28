@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 SUPPORTED_EXTENSIONS = (".md", ".markdown", ".txt", ".epub", ".pdf")
 
 
-class FileExplorerScreen(ModalScreen[Optional[str]]):
+class FileExplorerScreen(ModalScreen[str | None]):
     """File path input modal.
 
     Dismisses with the selected file path (str) or None if cancelled.

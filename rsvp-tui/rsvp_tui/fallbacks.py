@@ -188,10 +188,9 @@ def clean_markdown_line(line: str) -> str:
 def parse_epub_bytes(data: bytes) -> ParseResult:
     """Parse EPUB using ebooklib."""
     try:
-        import ebooklib
         from ebooklib import epub
     except ImportError:
-        raise NotImplementedError("EPUB parsing requires ebooklib: pip install ebooklib")
+        raise NotImplementedError("EPUB parsing requires ebooklib: pip install ebooklib") from None
 
     from io import BytesIO
     try:
@@ -205,10 +204,9 @@ def parse_epub_bytes(data: bytes) -> ParseResult:
 def parse_epub_path(file_path: Path) -> ParseResult:
     """Parse EPUB from file path."""
     try:
-        import ebooklib
         from ebooklib import epub
     except ImportError:
-        raise NotImplementedError("EPUB parsing requires ebooklib: pip install ebooklib")
+        raise NotImplementedError("EPUB parsing requires ebooklib: pip install ebooklib") from None
 
     try:
         book = epub.read_epub(str(file_path))
@@ -230,7 +228,7 @@ def _parse_epub_book(book) -> ParseResult:
         for item in book.get_metadata():
             if item[0] == "creator":
                 author = item[1][0].value if item[1] else "Unknown"
-    except:
+    except Exception:
         pass
 
     # Extract text from all documents
@@ -245,7 +243,7 @@ def _parse_epub_book(book) -> ParseResult:
                     text = re.sub(r'\s+', ' ', text).strip()
                     if text:
                         all_text.append(text)
-            except:
+            except Exception:
                 pass
 
     full_text = ' '.join(all_text)
@@ -272,7 +270,7 @@ def parse_pdf_bytes(data: bytes) -> ParseResult:
     try:
         import fitz
     except ImportError:
-        raise NotImplementedError("PDF parsing requires pymupdf: pip install pymupdf")
+        raise NotImplementedError("PDF parsing requires pymupdf: pip install pymupdf") from None
 
     from io import BytesIO
     doc = fitz.open(stream=BytesIO(data), filetype="pdf")
@@ -284,7 +282,7 @@ def parse_pdf_path(file_path: Path) -> ParseResult:
     try:
         import fitz
     except ImportError:
-        raise NotImplementedError("PDF parsing requires pymupdf: pip install pymupdf")
+        raise NotImplementedError("PDF parsing requires pymupdf: pip install pymupdf") from None
 
     try:
         doc = fitz.open(str(file_path))

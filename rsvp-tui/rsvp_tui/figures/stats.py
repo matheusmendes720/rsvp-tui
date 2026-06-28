@@ -28,7 +28,7 @@ class StatsFigure(Figure):
     name = "Stats Overlay"
     description = "Word + WPM sparkline + ETA and words-remaining."
     default_keybinding = "8"
-    default_params: Dict[str, Any] = {
+    default_params: dict[str, Any] = {
         "history_size": 60,
         "show_eta": True,
     }

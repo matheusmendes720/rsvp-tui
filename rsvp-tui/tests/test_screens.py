@@ -141,7 +141,7 @@ def test_default_commands_contain_core_actions():
 def test_palette_command_is_frozen():
     """PaletteCommand is a frozen dataclass — palette items don't mutate."""
     c = PaletteCommand(id="x", title="y")
-    with pytest.raises(Exception):
+    with pytest.raises(AttributeError):
         c.id = "z"  # type: ignore[misc]
 
 

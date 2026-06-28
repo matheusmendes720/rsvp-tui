@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -111,7 +110,7 @@ def _fuzzy_score(query: str, target: str) -> int:
     return score * 100 - len(target)
 
 
-class CommandPaletteScreen(ModalScreen[Optional[str]]):
+class CommandPaletteScreen(ModalScreen[str | None]):
     """Fuzzy command palette.
 
     Dismisses with the command id (str) the user selected, or
