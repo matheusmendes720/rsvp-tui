@@ -220,15 +220,20 @@ class RSVPApp(App):
         New UI: push LibraryScreen. Legacy UI: existing single-screen
         behavior.
         """
-        if self._new_ui:
+        try:
+            if self._new_ui:
+                self.title = "RSVP Speed Reader"
+                self._push_library()
+                log.info("on_mount: pushed LibraryScreen (new UI)")
+                return
             self.title = "RSVP Speed Reader"
-            self._push_library()
-            log.info("on_mount: pushed LibraryScreen (new UI)")
-            return
-        self.title = "RSVP Speed Reader"
-        self.sub_title = "Library"
-        self._show_library()
-        log.info("on_mount: legacy UI, showing library")
+            self.sub_title = "Library"
+            self._show_library()
+            log.info("on_mount: legacy UI, showing library")
+        except Exception as exc:
+            telemetry_error("app.RSVPApp.on_mount", exc)
+            self.notify(f"Fatal startup error: {exc}", severity="error")
+            raise
 
     # ---- New-UI routing --------------------------------------------------
 
@@ -240,6 +245,8 @@ class RSVPApp(App):
 
         if isinstance(self.screen, ReaderScreen):
             self.screen.action_toggle_play()
+        elif self.reader:
+            self.reader.toggle()
 
     def action_next_word(self) -> None:
         """Go to next word in reader (Right arrow)."""
@@ -247,6 +254,8 @@ class RSVPApp(App):
 
         if isinstance(self.screen, ReaderScreen):
             self.screen.action_next_word()
+        elif self.reader:
+            self.reader.next_word()
 
     def action_prev_word(self) -> None:
         """Go to previous word in reader (Left arrow)."""
@@ -254,6 +263,8 @@ class RSVPApp(App):
 
         if isinstance(self.screen, ReaderScreen):
             self.screen.action_prev_word()
+        elif self.reader:
+            self.reader.prev_word()
 
     def action_increase_speed(self) -> None:
         """Increase reading speed (Up arrow)."""
@@ -261,6 +272,10 @@ class RSVPApp(App):
 
         if isinstance(self.screen, ReaderScreen):
             self.screen.action_increase_speed()
+        elif self.reader:
+            self.reader.increase_speed()
+            progress = self.query_one(ProgressBar)
+            progress.set_wpm(self.reader.wpm)
 
     def action_decrease_speed(self) -> None:
         """Decrease reading speed (Down arrow)."""
@@ -268,6 +283,10 @@ class RSVPApp(App):
 
         if isinstance(self.screen, ReaderScreen):
             self.screen.action_decrease_speed()
+        elif self.reader:
+            self.reader.decrease_speed()
+            progress = self.query_one(ProgressBar)
+            progress.set_wpm(self.reader.wpm)
 
     def action_jump_start(self) -> None:
         """Jump to start of book (Home)."""
@@ -275,6 +294,8 @@ class RSVPApp(App):
 
         if isinstance(self.screen, ReaderScreen):
             self.screen.action_jump_start()
+        elif self.reader:
+            self.reader.jump_to(0)
 
     def action_jump_end(self) -> None:
         """Jump to end of book (End)."""
@@ -282,6 +303,8 @@ class RSVPApp(App):
 
         if isinstance(self.screen, ReaderScreen):
             self.screen.action_jump_end()
+        elif self.reader:
+            self.reader.jump_to(len(self.words) - 1)
 
     def action_toggle_focus(self) -> None:
         """Toggle focus mode (F)."""
@@ -289,6 +312,24 @@ class RSVPApp(App):
 
         if isinstance(self.screen, ReaderScreen):
             self.screen.action_toggle_focus()
+        else:
+            self.focus_mode = not self.focus_mode
+            if self.reader:
+                self.reader.focus_mode = self.focus_mode
+
+            if self.focus_mode:
+                self.add_class("focus-mode")
+            else:
+                self.remove_class("focus-mode")
+
+    def action_add_note(self) -> None:
+        """Add note at current position."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_add_note()
+        elif self.current_view == "reader" and self.reader and self.current_book:
+            self._on_note_added(self.reader.word_index)
 
     def action_next_figure(self) -> None:
         """Cycle to next figure (N)."""
@@ -515,16 +556,19 @@ class RSVPApp(App):
         """Show reader view."""
         if not self.current_book:
             return
+        try:
+            self.current_view = "reader"
+            self.query_one("#library-view").add_class("hidden")
+            self.query_one("#reader-container").remove_class("hidden")
+            self.query_one("#settings-view").add_class("hidden")
+            self.sub_title = self.current_book.title
 
-        self.current_view = "reader"
-        self.query_one("#library-view").add_class("hidden")
-        self.query_one("#reader-container").remove_class("hidden")
-        self.query_one("#settings-view").add_class("hidden")
-        self.sub_title = self.current_book.title
-
-        # Initialize reader if needed
-        if not self.reader:
-            self._init_reader()
+            # Initialize reader if needed
+            if not self.reader:
+                self._init_reader()
+        except Exception as exc:
+            telemetry_error("app.RSVPApp._show_reader", exc)
+            self.notify(f"Reader error: {exc}", severity="error")
 
     def _show_settings(self):
         """Show settings view."""
@@ -643,61 +687,6 @@ class RSVPApp(App):
         self.reader.pause() if self.reader else None
         self._show_library()
 
-    def action_toggle_play(self):
-        """Toggle play/pause."""
-        if self.current_view == "reader" and self.reader:
-            self.reader.toggle()
-
-    def action_prev_word(self):
-        """Go to previous word."""
-        if self.current_view == "reader" and self.reader:
-            self.reader.prev_word()
-
-    def action_next_word(self):
-        """Go to next word."""
-        if self.current_view == "reader" and self.reader:
-            self.reader.next_word()
-
-    def action_increase_speed(self):
-        """Increase reading speed."""
-        if self.reader:
-            self.reader.increase_speed()
-            progress = self.query_one(ProgressBar)
-            progress.set_wpm(self.reader.wpm)
-
-    def action_decrease_speed(self):
-        """Decrease reading speed."""
-        if self.reader:
-            self.reader.decrease_speed()
-            progress = self.query_one(ProgressBar)
-            progress.set_wpm(self.reader.wpm)
-
-    def action_jump_start(self):
-        """Jump to start."""
-        if self.reader:
-            self.reader.jump_to(0)
-
-    def action_jump_end(self):
-        """Jump to end."""
-        if self.reader:
-            self.reader.jump_to(len(self.words) - 1)
-
-    def action_toggle_focus(self):
-        """Toggle focus mode."""
-        self.focus_mode = not self.focus_mode
-        if self.reader:
-            self.reader.focus_mode = self.focus_mode
-
-        if self.focus_mode:
-            self.add_class("focus-mode")
-        else:
-            self.remove_class("focus-mode")
-
-    def action_add_note(self):
-        """Add note at current position."""
-        if self.current_view == "reader" and self.reader and self.current_book:
-            self._on_note_added(self.reader.word_index)
-
     def action_toggle_panel(self):
         """Toggle side panel."""
         note_panel = self.query_one(NotePanel)
@@ -709,26 +698,26 @@ class RSVPApp(App):
     def action_show_help(self):
         """Show help dialog."""
         help_text = """
-        [b]Keyboard Shortcuts[/b]
-        
-        [b]Navigation:[/b]
-        • [b]Space[/b] - Play/Pause
-        • [b]←/→[/b] - Previous/Next word
-        • [b]↑/↓[/b] - Increase/Decrease speed
-        • [b]Home[/b] - Jump to start
-        • [b]End[/b] - Jump to end
-        
-        [b]Views:[/b]
-        • [b]l[/b] - Library
-        • [b]s[/b] - Settings
-        • [b]f[/b] - Toggle focus mode
-        • [b]Tab[/b] - Toggle side panel
-        
-        [b]Actions:[/b]
-        • [b]n[/b] - Add note
-        • [b]q[/b] - Quit
-        • [b]?[/b] - This help
-        """
+[b]Keyboard Shortcuts[/b]
+
+[b]Navigation:[/b]
+• [b]Space[/b] - Play/Pause
+• [b]←/→[/b] - Previous/Next word
+• [b]↑/↓[/b] - Increase/Decrease speed
+• [b]Home[/b] - Jump to start
+• [b]End[/b] - Jump to end
+
+[b]Views:[/b]
+• [b]l[/b] - Library
+• [b]s[/b] - Settings
+• [b]f[/b] - Toggle focus mode
+• [b]Tab[/b] - Toggle side panel
+
+[b]Actions:[/b]
+• [b]n[/b] - Add note
+• [b]q[/b] - Quit
+• [b]?[/b] - This help
+"""
         self.notify(help_text, title="Help", timeout=10)
 
     def on_unmount(self):

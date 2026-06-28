@@ -43,21 +43,18 @@ from textual.widgets import (
 # Local imports
 try:
     from . import (
-        RUST_AVAILABLE,
         calculate_orp_index,
         calculate_word_delay,
-        estimate_reading_time,
         parse_epub_bytes,
         parse_markdown,
         parse_plain_text,
-        should_pause_at_punctuation,
         split_word_for_display,
         tokenize_text,
     )
     from .logging_ import telemetry_error
     from .managers.library_manager import LibraryManager
     from .managers.note_manager import NoteManager
-    from .models import Book, Chapter, Config, FileType, Note
+    from .models import Book, Config
     IMPORT_OK = True
 except ImportError as _exc:
     # Fallback imports for direct script execution
@@ -276,24 +273,28 @@ class LibraryScreen(Screen):
 
     def _load_books(self, search: str = ""):
         """Load books into the table."""
-        table = self.query_one("#books-table", DataTable)
-        table.clear()
+        try:
+            table = self.query_one("#books-table", DataTable)
+            table.clear()
 
-        books = self.library.list_books(search=search if search else None)
+            books = self.library.list_books(search=search if search else None)
 
-        for book in books:
-            progress = f"{book.completion_percentage:.0f}%"
-            last_read = book.last_read_date.strftime("%Y-%m-%d") if book.last_read_date else "Never"
+            for book in books:
+                progress = f"{book.completion_percentage:.0f}%"
+                last_read = book.last_read_date.strftime("%Y-%m-%d") if book.last_read_date else "Never"
 
-            table.add_row(
-                book.title[:40],
-                book.author[:20],
-                progress,
-                last_read,
-                f"{book.word_count:,}",
-                book.file_type.upper(),
-                key=book.id
-            )
+                table.add_row(
+                    book.title[:40],
+                    book.author[:20],
+                    progress,
+                    last_read,
+                    f"{book.word_count:,}",
+                    book.file_type.upper(),
+                    key=book.id
+                )
+        except Exception as exc:
+            telemetry_error("app_complete.LibraryScreen._load_books", exc)
+            self.notify(f"Error loading library: {exc}", severity="error")
 
     def on_input_changed(self, event: Input.Changed):
         """Handle search input."""
@@ -396,10 +397,8 @@ class ReaderScreen(Screen):
         try:
             self.words = self.library.load_words(self.book.id)
 
-            if not self.words:
-                # Try to parse from file
-                if self.book.file_path and Path(self.book.file_path).exists():
-                    self._parse_file(Path(self.book.file_path))
+            if not self.words and self.book.file_path and Path(self.book.file_path).exists():
+                self._parse_file(Path(self.book.file_path))
 
             if self.words:
                 display = self.query_one("#rsvp-display", RSVPWordDisplay)
@@ -438,6 +437,7 @@ class ReaderScreen(Screen):
                 self.book.cache_file_path.write_text(json.dumps(self.words))
 
         except Exception as e:
+            telemetry_error("app_complete.ReaderScreen._parse_file", e)
             self.notify(f"Error parsing file: {e}", severity="error")
 
     def _on_word_change(self, index: int):
@@ -560,13 +560,17 @@ class ReaderScreen(Screen):
     def action_add_note(self):
         """Open add note dialog."""
         if self.rsvp_display:
-            self.app.push_screen(AddNoteScreen(
-                self.book.id,
-                self.rsvp_display.word_index,
-                self.words[self.rsvp_display.word_index] if self.rsvp_display.word_index < len(self.words) else "",
-                self.note_manager,
-                self
-            ))
+            try:
+                self.app.push_screen(AddNoteScreen(
+                    self.book.id,
+                    self.rsvp_display.word_index,
+                    self.words[self.rsvp_display.word_index] if self.rsvp_display.word_index < len(self.words) else "",
+                    self.note_manager,
+                    self
+                ))
+            except Exception as exc:
+                telemetry_error("app_complete.ReaderScreen.action_add_note", exc)
+                self.notify(f"Error adding note: {exc}", severity="error")
 
     def action_go_back(self):
         """Go back to library."""

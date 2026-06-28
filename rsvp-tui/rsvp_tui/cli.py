@@ -230,7 +230,13 @@ def library(list_books: bool, search: str | None) -> None:
     config = Config.load()
     library = LibraryManager(config.library_db_path)
     if list_books or search:
-        books = library.list_books(search=search)
+        try:
+            books = library.list_books(search=search)
+        except Exception as exc:
+            from .logging_ import telemetry_error
+            telemetry_error("cli.library.list_books", exc)
+            click.echo(f"Error listing books: {exc}", err=True)
+            sys.exit(1)
         if not books:
             click.echo("No books in library.")
             return
@@ -243,32 +249,67 @@ def library(list_books: bool, search: str | None) -> None:
             click.echo(f"{book.id:<20} {title:<30} {author:<20} {progress:<10}")
         return
     # No flags: launch the TUI at the library view.
-    app = RSVPApp()
-    app.run()
+    try:
+        app = RSVPApp()
+        app.run()
+    except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.library.app_run", exc)
+        raise
 
 
 @cli.command()
 @click.argument("book_id")
 def remove(book_id: str) -> None:
     """Remove a book from the library."""
-    config = Config.load()
-    library = LibraryManager(config.library_db_path)
-    book = library.get_book(book_id)
+    try:
+        config = Config.load()
+        library = LibraryManager(config.library_db_path)
+    except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.remove.config", exc)
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+    try:
+        book = library.get_book(book_id)
+    except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.remove.get_book", exc)
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
     if not book:
         click.echo(f"Book not found: {book_id}", err=True)
         sys.exit(1)
-    if click.confirm(f"Delete '{book.title}' by {book.author}?"):
-        library.delete_book(book_id)
-        click.echo("Book deleted.")
+    try:
+        if click.confirm(f"Delete '{book.title}' by {book.author}?"):
+            library.delete_book(book_id)
+            click.echo("Book deleted.")
+    except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.remove.delete", exc)
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
 
 
 @cli.command()
 @click.argument("book_id")
 def stats(book_id: str) -> None:
     """Show reading statistics for a book (verbose)."""
-    config = Config.load()
-    library = LibraryManager(config.library_db_path)
-    book = library.get_book(book_id)
+    try:
+        config = Config.load()
+        library = LibraryManager(config.library_db_path)
+    except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.stats.config", exc)
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+    try:
+        book = library.get_book(book_id)
+    except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.stats.get_book", exc)
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
     if not book:
         click.echo(f"Book not found: {book_id}", err=True)
         sys.exit(1)
@@ -281,9 +322,7 @@ def stats(book_id: str) -> None:
     click.echo(f"  Current word:     {book.current_word_index:,}")
     click.echo(f"  Completion:       {book.completion_percentage:.1f}%")
     if book.last_read_date:
-        click.echo(
-            f"  Last read:        {book.last_read_date.strftime('%Y-%m-%d %H:%M')}"
-        )
+        click.echo(f"  Last read:        {book.last_read_date.strftime('%Y-%m-%d %H:%M')}")
 
 
 # ---- Configuration ---------------------------------------------------------
@@ -292,18 +331,23 @@ def stats(book_id: str) -> None:
 @cli.command()
 def config() -> None:
     """Open the settings UI (live preview, debounced auto-save)."""
-    app = RSVPApp()
-    # Force the new-UI path so the modal SettingsScreen is used.
-    from .screens.settings_screen import SettingsScreen
+    try:
+        app = RSVPApp()
+        # Force the new-UI path so the modal SettingsScreen is used.
+        from .screens.settings_screen import SettingsScreen
 
-    original_on_mount = app.on_mount
+        original_on_mount = app.on_mount
 
-    def _on_mount() -> None:
-        original_on_mount()
-        app.push_screen(SettingsScreen(app.config))
+        def _on_mount() -> None:
+            original_on_mount()
+            app.push_screen(SettingsScreen(app.config))
 
-    app.on_mount = _on_mount  # type: ignore[method-assign]
-    app.run()
+        app.on_mount = _on_mount  # type: ignore[method-assign]
+        app.run()
+    except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.config.app_run", exc)
+        raise
 
 
 # ---- Diagnostics ------------------------------------------------------------
@@ -349,15 +393,20 @@ def doctor() -> None:
 @cli.command()
 def themes() -> None:
     """List the available themes."""
-    from .themes import all_themes, default_theme
+    try:
+        from .themes import all_themes, default_theme
 
-    current_id = getattr(default_theme(), "id", "dark")
-    click.echo(f"Current: {current_id}\n")
-    click.echo(f"{'ID':<12} {'Name':<20}")
-    click.echo("-" * 32)
-    for t in all_themes():
-        marker = " *" if t.id == current_id else "  "
-        click.echo(f"{marker} {t.id:<10} {t.name}")
+        current_id = getattr(default_theme(), "id", "dark")
+        click.echo(f"Current: {current_id}\n")
+        click.echo(f"{'ID':<12} {'Name':<20}")
+        click.echo("-" * 32)
+        for t in all_themes():
+            marker = " *" if t.id == current_id else "  "
+            click.echo(f"{marker} {t.id:<10} {t.name}")
+    except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.themes", exc)
+        raise
 
 
 # ---- App management --------------------------------------------------------
@@ -366,40 +415,50 @@ def themes() -> None:
 @cli.command()
 def where() -> None:
     """Show the data directory paths used by RSVP."""
-    cfg = Config.load()
-    click.echo("RSVP data locations:\n")
-    rows = [
-        ("Config file", cfg.config_path),
-        ("Library DB", cfg.library_db_path),
-        ("Notes dir", cfg.notes_dir),
-        ("Cache dir", getattr(cfg, "cache_dir", None)),
-    ]
-    for label, path in rows:
-        if path is None:
-            click.echo(f"  {label:<14} <not configured>")
-            continue
-        p = Path(path)
-        marker = "✓" if p.exists() else "·"
-        click.echo(f"  {marker} {label:<14} {p}")
-    click.echo(
-        "\nTo override, set RSVP_HOME to a directory of your choice."
-    )
+    try:
+        cfg = Config.load()
+        click.echo("RSVP data locations:\n")
+        rows = [
+            ("Config file", cfg.config_path),
+            ("Library DB", cfg.library_db_path),
+            ("Notes dir", cfg.notes_dir),
+            ("Cache dir", getattr(cfg, "cache_dir", None)),
+        ]
+        for label, path in rows:
+            if path is None:
+                click.echo(f"  {label:<14} <not configured>")
+                continue
+            p = Path(path)
+            marker = "✓" if p.exists() else "·"
+            click.echo(f"  {marker} {label:<14} {p}")
+        click.echo(
+            "\nTo override, set RSVP_HOME to a directory of your choice."
+        )
+    except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.where", exc)
+        raise
 
 
 @cli.command()
 def version() -> None:
     """Show version, Python, and platform info (more than --version)."""
-    cfg = Config.load()
-    info = {
-        "rsvp": __version__,
-        "python": sys.version.split()[0],
-        "platform": platform.platform(),
-        "config_schema": cfg.schema_version,
-        "rust_core": _safe_check_rust(),
-    }
-    for k, v in info.items():
-        click.echo(f"  {k:<14} {v}")
-    click.echo(f"  {'config_path':<14} {cfg.config_path}")
+    try:
+        cfg = Config.load()
+        info = {
+            "rsvp": __version__,
+            "python": sys.version.split()[0],
+            "platform": platform.platform(),
+            "config_schema": cfg.schema_version,
+            "rust_core": _safe_check_rust(),
+        }
+        for k, v in info.items():
+            click.echo(f"  {k:<14} {v}")
+        click.echo(f"  {'config_path':<14} {cfg.config_path}")
+    except Exception as exc:
+        from .logging_ import telemetry_error
+        telemetry_error("cli.version", exc)
+        raise
 
 
 def _safe_check_rust() -> str:
