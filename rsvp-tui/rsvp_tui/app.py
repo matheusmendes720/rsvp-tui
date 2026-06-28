@@ -167,7 +167,7 @@ class RSVPApp(App):
             self.config.default_wpm,
             self.config.library_db_path,
         )
-        telemetry(event="app.startup", new_ui=self._new_ui, figure=self.config.figure_id)
+        telemetry.app_startup(new_ui=self._new_ui, figure=self.config.figure_id)
     
     def compose(self) -> ComposeResult:
         """Compose the UI.
@@ -412,7 +412,7 @@ class RSVPApp(App):
         if not isinstance(self.screen, LibraryScreen):
             self.push_screen(LibraryScreen(config=self.config))
         log.info("screen.push: LibraryScreen from=%s", prev)
-        telemetry(event="screen.push", screen="LibraryScreen", from_screen=prev)
+        telemetry.screen_push(screen="LibraryScreen", from_screen=prev)
 
     def _push_reader(self, book: Book) -> None:
         """Load words for ``book`` and push ReaderScreen (new UI)."""
@@ -432,12 +432,7 @@ class RSVPApp(App):
             book.title,
             len(words),
         )
-        telemetry(
-            event="book.open",
-            book_id=book.id,
-            title=book.title,
-            word_count=len(words),
-        )
+        telemetry.book_open(book_id=book.id, title=book.title, word_count=len(words))
 
     # ---- Message handlers (new UI) --------------------------------------
 
@@ -461,7 +456,7 @@ class RSVPApp(App):
             self.config.figure_id = message.next_id
             self.notify(f"Figure: {message.next_id}")
             log.info("figure.swap: %s -> %s", message.prev_id, message.next_id)
-            telemetry(event="figure.swap", from_id=message.prev_id, to_id=message.next_id)
+            telemetry.figure_swap(from_id=message.prev_id, to_id=message.next_id)
 
     def on_figure_state_advanced(self, message: FigureStateAdvanced) -> None:
         """Auto-save library progress every 100 words."""
@@ -492,7 +487,7 @@ class RSVPApp(App):
             "book.complete: book_id=%s",
             message.book_id,
         )
-        telemetry(event="book.complete", book_id=message.book_id)
+        telemetry.book_complete(book_id=message.book_id)
 
     def on_config_changed(self, message: ConfigChanged) -> None:
         """Settings screen flushed a change; reload our in-memory config.
@@ -741,4 +736,4 @@ class RSVPApp(App):
                 self.reader.word_index,
             )
         log.info("on_unmount: final progress saved")
-        telemetry(event="app.shutdown")
+        telemetry.app_shutdown()

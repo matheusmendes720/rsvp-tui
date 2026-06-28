@@ -309,6 +309,20 @@ class Telemetry:
             title=title, file_type=file_type, word_count=word_count,
         )
 
+    def book_complete(self, book_id: str) -> None:
+        _t_emit(event="book.complete", book_id=book_id)
+
+    # ---- App -------------------------------------------------------------
+
+    def app_startup(self, new_ui: bool, figure: str) -> None:
+        _t_emit(event="app.startup", new_ui=new_ui, figure=figure)
+
+    def app_shutdown(self) -> None:
+        _t_emit(event="app.shutdown")
+
+    def screen_push(self, screen: str, from_screen: str) -> None:
+        _t_emit(event="screen.push", screen=screen, from_screen=from_screen)
+
     # ---- Figure ----------------------------------------------------------
 
     def figure_mount(self, figure_id: str, reason: str) -> None:
