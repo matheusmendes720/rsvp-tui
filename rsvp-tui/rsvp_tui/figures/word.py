@@ -51,6 +51,22 @@ class WordFigure(Figure):
     def _on_init(self) -> None:
         self._theme = get_theme("dark")
 
+    @property
+    def focus_mode(self) -> bool:
+        """Return current focus mode state (show context words)."""
+        return bool(self._params.get("show_context", True))
+
+    @focus_mode.setter
+    def focus_mode(self, value: bool) -> None:
+        """Set focus mode (controls show_context parameter)."""
+        self._params["show_context"] = bool(value)
+        self.refresh()
+
+    def toggle_focus(self) -> None:
+        """Toggle focus mode (hide/show context words)."""
+        self._params["show_context"] = not self._params.get("show_context", True)
+        self.refresh()
+
     def render(self) -> object:  # type: ignore[override]
         current = self._current_word()
         if not current:

@@ -126,6 +126,11 @@ class Figure(Static):
     word_index: reactive[int] = reactive(0)
     is_playing: reactive[bool] = reactive(False)
     wpm: reactive[int] = reactive(300)
+    focus_mode: reactive[bool] = reactive(False)
+
+    def toggle_focus(self) -> None:
+        """Toggle focus mode. Subclasses may override; base impl. does nothing."""
+        pass
 
     def __init__(
         self,
