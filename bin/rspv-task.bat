@@ -31,6 +31,7 @@ if exist "%ROOT%\.venv\Scripts\python.exe" (
 rem Map of task -> module. Forwarded as:  py -m <module> <task> [args]
 set "MODULE="
 if /i "%~1"=="tui"        set "MODULE=rsvp_tui.cli"
+if /i "%~1"=="rspv-tui"    set "MODULE=rsvp_tui.cli"
 if /i "%~1"=="read"       set "MODULE=rsvp_tui.cli"
 if /i "%~1"=="r"          set "MODULE=rsvp_tui.cli"
 if /i "%~1"=="import"     set "MODULE=rsvp_tui.cli"

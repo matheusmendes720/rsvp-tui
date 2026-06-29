@@ -291,6 +291,17 @@ class Config:
     show_navigation_panel: bool = True  # show chapter/page navigation in reader
     show_note_panel: bool = True  # show note panel in reader
 
+    # --- v3.1 fields (horizontal reading) ---
+
+    display_mode: str = "word"  # word, horizontal, line, chunk
+    chunk_size: int = 7  # words per chunk (3, 5, 7, 9, 11, 15)
+    text_alignment: str = "center"  # center, left, dynamic
+    highlight_style: str = "focal"  # focal, bionic, central, full
+    highlight_color: str = "red"  # red, cyan, green, yellow, magenta, white
+    peripheral_opacity: int = 100  # 100, 75, 50, 25
+    auto_advance: bool = True  # auto-advance to next word/chunk
+    advance_trigger: str = "time"  # time, manual, hybrid
+
     # --- Storage paths ---
 
     library_db_path: Path = field(default_factory=lambda: Path.home() / ".rsvp" / "library.db")

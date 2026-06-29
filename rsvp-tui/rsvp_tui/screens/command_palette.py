@@ -45,32 +45,75 @@ class PaletteCommand:
 # Static command list. Adding a new command is a one-line change.
 # Order is the display order when the palette opens.
 DEFAULT_COMMANDS: list[PaletteCommand] = [
+    # === LAUNCH COMMANDS ===
+    PaletteCommand("launch_tui", "Launch: TUI (default)", "rsvp tui"),
+    PaletteCommand("launch_library", "Launch: Library View", "rsvp library"),
+    PaletteCommand("launch_palette", "Launch: Command Palette", "Ctrl+P"),
+    PaletteCommand("launch_demo", "Launch: Demo Mode", "rsvp demo"),
+    PaletteCommand("launch_config", "Launch: Settings UI", "rsvp config"),
+    # === READING CONTROLS ===
     PaletteCommand("next_figure", "Next Figure", "n"),
     PaletteCommand("prev_figure", "Previous Figure", "shift+n"),
     PaletteCommand("open_picker", "Open Figure Picker", "ctrl+g"),
     PaletteCommand("toggle_play", "Play / Pause", "space"),
     PaletteCommand("jump_start", "Jump to Start", "home"),
     PaletteCommand("jump_end", "Jump to End", "end"),
+    # === SPEED CONTROLS ===
     PaletteCommand("increase_speed", "Increase WPM (+25)", "up"),
     PaletteCommand("decrease_speed", "Decrease WPM (-25)", "down"),
     PaletteCommand("wpm_300", "Set WPM = 300", ""),
     PaletteCommand("wpm_400", "Set WPM = 400", ""),
     PaletteCommand("wpm_500", "Set WPM = 500", ""),
     PaletteCommand("wpm_600", "Set WPM = 600", ""),
+    PaletteCommand("wpm_750", "Set WPM = 750", ""),
+    PaletteCommand("wpm_1000", "Set WPM = 1000", ""),
+    # === THEME CONTROLS ===
     PaletteCommand("theme_dark", "Theme: Dark", ""),
     PaletteCommand("theme_light", "Theme: Light", ""),
     PaletteCommand("theme_solarized", "Theme: Solarized", ""),
+    # === FOCUS & NOTES ===
     PaletteCommand("toggle_focus", "Toggle Focus Mode", "f"),
     PaletteCommand("add_note", "Add Note at Position", "n"),
-    PaletteCommand("show_help", "Show Help", "?"),
-    # Navigation commands
+    PaletteCommand("toggle_note_panel", "Toggle Note Panel", "ctrl+b"),
+    # === NAVIGATION ===
     PaletteCommand("open_file", "Open File...", "ctrl+o"),
     PaletteCommand("next_chapter", "Next Chapter", "]"),
     PaletteCommand("prev_chapter", "Previous Chapter", "["),
     PaletteCommand("go_to_chapter", "Go to Chapter...", "g c"),
     PaletteCommand("go_to_page", "Go to Page...", "g p"),
     PaletteCommand("toggle_navigation", "Toggle Navigation Panel", "ctrl+n"),
-    PaletteCommand("toggle_note_panel", "Toggle Note Panel", "ctrl+b"),
+    # === FIGURE SWITCHING ===
+    PaletteCommand("figure_word", "Figure: Single Word (ORP)", "1"),
+    PaletteCommand("figure_chunk", "Figure: Word Chunk (3w)", "2"),
+    PaletteCommand("figure_horizontal", "Figure: Horizontal (Multi-Word)", "4"),
+    PaletteCommand("figure_line", "Figure: Full Line", "3"),
+    PaletteCommand("figure_bionic", "Figure: Bionic", ""),
+    PaletteCommand("figure_spritz", "Figure: Spritz", ""),
+    PaletteCommand("figure_pacer", "Figure: Pacer", ""),
+    PaletteCommand("figure_minimap", "Figure: MiniMap", ""),
+    # === HORIZONTAL PARAMS ===
+    PaletteCommand("chunk_5", "Set Chunk = 5 words", ""),
+    PaletteCommand("chunk_7", "Set Chunk = 7 words", ""),
+    PaletteCommand("chunk_9", "Set Chunk = 9 words", ""),
+    PaletteCommand("chunk_11", "Set Chunk = 11 words", ""),
+    PaletteCommand("toggle_bionic", "Toggle Bionic Style", ""),
+    PaletteCommand("toggle_fade", "Toggle Peripheral Fade", ""),
+    PaletteCommand("show_help", "Show Help", "?"),
+    # === LIBRARY COMMANDS ===
+    PaletteCommand("library", "Library: View All Books", "rsvp ls"),
+    PaletteCommand("import", "Library: Import Book", "rsvp i"),
+    PaletteCommand("remove", "Library: Remove Book", "rsvp rm"),
+    PaletteCommand("stats", "Library: Show Stats", "rsvp stats"),
+    # === CLI UTILS (run outside TUI) ===
+    PaletteCommand("cli_doctor", "CLI: Diagnose Install", "rsvp doctor"),
+    PaletteCommand("cli_themes", "CLI: List Themes", "rsvp themes"),
+    PaletteCommand("cli_where", "CLI: Show Paths", "rsvp where"),
+    PaletteCommand("cli_version", "CLI: Show Version", "rsvp version"),
+    PaletteCommand("cli_build", "CLI: Build Rust Ext", "rsvp build"),
+    PaletteCommand("cli_sync", "CLI: Sync Dependencies", "rsvp sync"),
+    PaletteCommand("cli_test", "CLI: Run Tests", "rsvp test"),
+    PaletteCommand("cli_lint", "CLI: Lint Code", "rsvp lint"),
+    PaletteCommand("cli_verify", "CLI: Full Quality Gate", "rsvp verify"),
 ]
 
 

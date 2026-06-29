@@ -108,6 +108,83 @@ TIMING_FIELDS: list[dict[str, Any]] = [
     _float_field("comma_pause_multiplier", "Comma Multiplier", 1.0, 3.0),
 ]
 
+# Tab 5 — Horizontal Reading (v3.1 new)
+HORIZONTAL_FIELDS: list[dict[str, Any]] = [
+    _choice_field(
+        "display_mode",
+        "Display Mode",
+        [
+            ("word", "RSVP Single Word"),
+            ("horizontal", "Horizontal Chunk"),
+            ("line", "Full Line"),
+            ("chunk", "Word Chunk"),
+        ],
+    ),
+    _choice_field(
+        "chunk_size",
+        "Chunk Size",
+        [
+            ("3", "3 words"),
+            ("5", "5 words"),
+            ("7", "7 words"),
+            ("9", "9 words"),
+            ("11", "11 words"),
+            ("15", "15 words"),
+        ],
+    ),
+    _choice_field(
+        "text_alignment",
+        "Text Alignment",
+        [
+            ("center", "Center"),
+            ("left", "Left"),
+            ("dynamic", "Dynamic"),
+        ],
+    ),
+    _choice_field(
+        "highlight_style",
+        "Highlight Style",
+        [
+            ("focal", "Focal Point (ORP)"),
+            ("bionic", "Bionic (First Letter)"),
+            ("central", "Central Word"),
+            ("full", "Full Line"),
+        ],
+    ),
+    _choice_field(
+        "highlight_color",
+        "Highlight Color",
+        [
+            ("red", "Red"),
+            ("cyan", "Cyan"),
+            ("green", "Green"),
+            ("yellow", "Yellow"),
+            ("magenta", "Magenta"),
+            ("white", "White"),
+        ],
+    ),
+    _choice_field(
+        "peripheral_opacity",
+        "Peripheral Opacity",
+        [
+            ("100", "100% (Full)"),
+            ("75", "75%"),
+            ("50", "50%"),
+            ("25", "25% (Faded)"),
+        ],
+    ),
+    _bool_field("auto_advance", "Auto-Advance"),
+    _choice_field(
+        "advance_trigger",
+        "Advance Trigger",
+        [
+            ("time", "Time-based"),
+            ("manual", "Manual Only"),
+            ("hybrid", "Hybrid"),
+        ],
+    ),
+]
+
 
 # ---- Confirm modal --------------------------------------------------------
 
@@ -237,6 +314,8 @@ class SettingsScreen(ModalScreen[None]):
                     yield VerticalScroll(*self._build_fields(TIMING_FIELDS))
                 with TabPane("Navigation", id="tab-navigation"):
                     yield VerticalScroll(*self._build_fields(NAVIGATION_FIELDS))
+                with TabPane("Horizontal", id="tab-horizontal"):
+                    yield VerticalScroll(*self._build_fields(HORIZONTAL_FIELDS))
                 with TabPane("Input", id="tab-input"):
                     yield Static(
                         "Key remapping is not yet exposed in the UI.\n"
@@ -352,7 +431,7 @@ class SettingsScreen(ModalScreen[None]):
         patch: dict[str, Any] = {}
 
         # Read all simple fields.
-        for fld_list in (READING_FIELDS, DISPLAY_FIELDS, TIMING_FIELDS):
+        for fld_list in (READING_FIELDS, DISPLAY_FIELDS, TIMING_FIELDS, HORIZONTAL_FIELDS):
             for f in fld_list:
                 attr = f["attr"]
                 wid = f"fld-{attr}"
@@ -602,7 +681,7 @@ class SettingsScreen(ModalScreen[None]):
 
     def _rebuild_form(self) -> None:
         """Re-populate every field with the latest config values."""
-        for fld_list in (READING_FIELDS, DISPLAY_FIELDS, TIMING_FIELDS):
+        for fld_list in (READING_FIELDS, DISPLAY_FIELDS, TIMING_FIELDS, HORIZONTAL_FIELDS):
             for f in fld_list:
                 attr = f["attr"]
                 wid = f"fld-{attr}"

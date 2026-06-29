@@ -115,12 +115,13 @@ def default_registry() -> FigureRegistry:
         # Importing here avoids a circular import: figures import
         # Figure from .base, and the registry is the only thing
         # that wires them up.
-        from . import bionic, chunk, line, minimap, pacer, spritz, stats, word
+        from . import bionic, chunk, horizontal, line, minimap, pacer, spritz, stats, word
 
         _default.register_all(
             [
                 word.WordFigure(),
                 chunk.ChunkFigure(),
+                horizontal.HorizontalFigure(),
                 line.LineFigure(),
                 bionic.BionicFigure(),
                 spritz.SpritzFigure(),

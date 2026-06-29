@@ -484,6 +484,20 @@ class ReaderScreen(RSVPBaseScreen):
         """Dispatch a palette command."""
         if not command_id:
             return
+
+        # === LAUNCH COMMANDS ===
+        if command_id == "launch_tui":
+            self.app.notify("Already in TUI - use Ctrl+L for library")
+        elif command_id == "launch_library":
+            self.app.switch_mode("library")
+        elif command_id == "launch_palette":
+            self.app.push_screen(CommandPaletteScreen())
+        elif command_id == "launch_demo":
+            self.app.notify("Demo mode: use rspv demo from CLI")
+        elif command_id == "launch_config":
+            self.app.push_screen("settings")
+
+        # === READING CONTROLS ===
         if command_id == "next_figure":
             self.action_next_figure()
         elif command_id == "prev_figure":
@@ -525,6 +539,63 @@ class ReaderScreen(RSVPBaseScreen):
         elif command_id.startswith("theme_"):
             theme = command_id.split("_", 1)[1]
             self._set_theme(theme)
+
+        # === LIBRARY COMMANDS ===
+        elif command_id == "library":
+            self.app.switch_mode("library")
+        elif command_id in ("import", "remove", "stats"):
+            self.app.notify(f"Use CLI: rspv {command_id}")
+
+        # === CLI UTILS (run outside TUI) ===
+        elif command_id in (
+            "cli_doctor",
+            "cli_themes",
+            "cli_where",
+            "cli_version",
+            "cli_build",
+            "cli_sync",
+            "cli_test",
+            "cli_lint",
+            "cli_verify",
+        ):
+            # Extract the cli command name (remove "cli_")
+            cli_cmd = command_id.replace("cli_", "")
+            self.app.notify(f"Run outside TUI: rspv.bat {cli_cmd}")
+
+        # === FIGURE SWITCHING ===
+        elif command_id == "figure_word":
+            self._swap_figure("word")
+        elif command_id == "figure_chunk":
+            self._swap_figure("chunk")
+        elif command_id == "figure_horizontal":
+            self._swap_figure("horizontal")
+        elif command_id == "figure_line":
+            self._swap_figure("line")
+        elif command_id == "figure_bionic":
+            self._swap_figure("bionic")
+        elif command_id == "figure_spritz":
+            self._swap_figure("spritz")
+        elif command_id == "figure_pacer":
+            self._swap_figure("pacer")
+        elif command_id == "figure_minimap":
+            self._swap_figure("minimap")
+
+        # === HORIZONTAL PARAMS ===
+        elif command_id.startswith("chunk_"):
+            try:
+                size = int(command_id.split("_")[1])
+                self._set_figure_param("chunk_size", size)
+                self.app.notify(f"Chunk size set to {size} words")
+            except (ValueError, IndexError):
+                pass
+        elif command_id == "toggle_bionic":
+            current = self._current_figure.get_param("bionic_enabled", False)
+            self._set_figure_param("bionic_enabled", not current)
+            self.app.notify(f"Bionic style: {'on' if not current else 'off'}")
+        elif command_id == "toggle_fade":
+            current = self._current_figure.get_param("fade_peripheral", True)
+            self._set_figure_param("fade_peripheral", not current)
+            self.app.notify(f"Peripheral fade: {'on' if not current else 'off'}")
 
     def _on_note_added(self, word_index: int) -> None:
         """Forward note-add to the app for persistence (Phase 2 stub)."""
