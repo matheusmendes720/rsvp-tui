@@ -411,6 +411,7 @@ class SettingsScreen(ModalScreen[None]):
         """Render the initial params form for the first figure."""
         self._refresh_figure_params_form()
         self._set_status("Edit a value to see live preview.")
+        telemetry.settings_open(tab="reading")
 
     # ---- Debounced apply ------------------------------------------------
 
@@ -480,6 +481,23 @@ class SettingsScreen(ModalScreen[None]):
                 telemetry.figure_swap(from_id="unknown", to_id=patch["figure_id"])
             if "theme" in patch:
                 telemetry.config_change(key="theme", value=patch["theme"])
+            # Horizontal reading settings (v3.1)
+            if "display_mode" in patch:
+                telemetry.display_mode_change(from_mode=self._config.display_mode, to_mode=patch["display_mode"], source="settings")
+            if "chunk_size" in patch:
+                telemetry.chunk_size_change(from_size=self._config.chunk_size, to_size=patch["chunk_size"], source="settings")
+            if "text_alignment" in patch:
+                telemetry.text_alignment_change(from_align=self._config.text_alignment, to_align=patch["text_alignment"], source="settings")
+            if "highlight_style" in patch:
+                telemetry.highlight_style_change(from_style=self._config.highlight_style, to_style=patch["highlight_style"], source="settings")
+            if "highlight_color" in patch:
+                telemetry.highlight_color_change(from_color=self._config.highlight_color, to_color=patch["highlight_color"], source="settings")
+            if "peripheral_opacity" in patch:
+                telemetry.peripheral_opacity_change(from_opacity=self._config.peripheral_opacity, to_opacity=patch["peripheral_opacity"], source="settings")
+            if "auto_advance" in patch:
+                telemetry.auto_advance_change(enabled=patch["auto_advance"], source="settings")
+            if "advance_trigger" in patch:
+                telemetry.advance_trigger_change(from_trigger=self._config.advance_trigger, to_trigger=patch["advance_trigger"], source="settings")
 
         # Figure params tab.
         self._config.figure_params = dict(self._figure_params)

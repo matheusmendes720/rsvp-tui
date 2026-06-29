@@ -401,6 +401,57 @@ class Telemetry:
     def config_save(self, schema_version: int) -> None:
         _t_emit(event="config.save", schema_version=schema_version)
 
+    # ---- Horizontal Reading Settings (v3.1) ---------------------------
+
+    def display_mode_change(self, from_mode: str, to_mode: str, source: str) -> None:
+        _t_emit(event="horizontal.display_mode", from_mode=from_mode, to_mode=to_mode, source=source)
+
+    def chunk_size_change(self, from_size: int, to_size: int, source: str) -> None:
+        _t_emit(event="horizontal.chunk_size", from_size=from_size, to_size=to_size, source=source)
+
+    def text_alignment_change(self, from_align: str, to_align: str, source: str) -> None:
+        _t_emit(event="horizontal.text_alignment", from_align=from_align, to_align=to_align, source=source)
+
+    def highlight_style_change(self, from_style: str, to_style: str, source: str) -> None:
+        _t_emit(event="horizontal.highlight_style", from_style=from_style, to_style=to_style, source=source)
+
+    def highlight_color_change(self, from_color: str, to_color: str, source: str) -> None:
+        _t_emit(event="horizontal.highlight_color", from_color=from_color, to_color=to_color, source=source)
+
+    def peripheral_opacity_change(self, from_opacity: int, to_opacity: int, source: str) -> None:
+        _t_emit(event="horizontal.peripheral_opacity", from_opacity=from_opacity, to_opacity=to_opacity, source=source)
+
+    def auto_advance_change(self, enabled: bool, source: str) -> None:
+        _t_emit(event="horizontal.auto_advance", enabled=enabled, source=source)
+
+    def advance_trigger_change(self, from_trigger: str, to_trigger: str, source: str) -> None:
+        _t_emit(event="horizontal.advance_trigger", from_trigger=from_trigger, to_trigger=to_trigger, source=source)
+
+    # ---- Live Keybinding Events -----------------------------------------
+
+    def keybinding_chunk_increase(self, new_size: int, source: str) -> None:
+        _t_emit(event="keybinding.chunk_increase", new_size=new_size, source=source)
+
+    def keybinding_chunk_decrease(self, new_size: int, source: str) -> None:
+        _t_emit(event="keybinding.chunk_decrease", new_size=new_size, source=source)
+
+    def keybinding_highlight_cycle(self, new_style: str, source: str) -> None:
+        _t_emit(event="keybinding.highlight_cycle", new_style=new_style, source=source)
+
+    def keybinding_fade_toggle(self, enabled: bool, source: str) -> None:
+        _t_emit(event="keybinding.fade_toggle", enabled=enabled, source=source)
+
+    # ---- Settings Screen Events -------------------------------------------
+
+    def settings_open(self, tab: str) -> None:
+        _t_emit(event="settings.open", tab=tab)
+
+    def settings_tab_change(self, from_tab: str, to_tab: str) -> None:
+        _t_emit(event="settings.tab_change", from_tab=from_tab, to_tab=to_tab)
+
+    def settings_value_change(self, key: str, value: object, source: str) -> None:
+        _t_emit(event="settings.value_change", key=key, value=str(value)[:80], source=source)
+
 
 # Singleton — must be named AFTER _t_emit is defined above
 telemetry = Telemetry()

@@ -584,18 +584,24 @@ class ReaderScreen(RSVPBaseScreen):
         elif command_id.startswith("chunk_"):
             try:
                 size = int(command_id.split("_")[1])
+                old_size = self._current_figure.get_param("chunk_size", 7)
                 self._set_figure_param("chunk_size", size)
                 self.app.notify(f"Chunk size set to {size} words")
+                telemetry.keybinding_chunk_increase(new_size=size, source="palette")
             except (ValueError, IndexError):
                 pass
         elif command_id == "toggle_bionic":
             current = self._current_figure.get_param("bionic_enabled", False)
-            self._set_figure_param("bionic_enabled", not current)
-            self.app.notify(f"Bionic style: {'on' if not current else 'off'}")
+            new_value = not current
+            self._set_figure_param("bionic_enabled", new_value)
+            self.app.notify(f"Bionic style: {'on' if new_value else 'off'}")
+            telemetry.keybinding_highlight_cycle(new_style="bionic" if new_value else "focal", source="palette")
         elif command_id == "toggle_fade":
             current = self._current_figure.get_param("fade_peripheral", True)
-            self._set_figure_param("fade_peripheral", not current)
-            self.app.notify(f"Peripheral fade: {'on' if not current else 'off'}")
+            new_value = not current
+            self._set_figure_param("fade_peripheral", new_value)
+            self.app.notify(f"Peripheral fade: {'on' if new_value else 'off'}")
+            telemetry.keybinding_fade_toggle(enabled=new_value, source="palette")
 
     def _on_note_added(self, word_index: int) -> None:
         """Forward note-add to the app for persistence (Phase 2 stub)."""
