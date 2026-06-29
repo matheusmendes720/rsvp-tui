@@ -570,9 +570,13 @@ class RSVPApp(App[Any]):
         self.query_one("#settings-view").add_class("hidden")
         self.sub_title = "Library"
 
-        # Refresh library
+        # Refresh library and focus the DataTable so keyboard nav works
         library_view = self.query_one(LibraryView)
         library_view.load_books()
+        # Restore search-input focusability and focus the table
+        inp = self.query_one("#search-input")
+        inp.can_focus = getattr(self, "_prev_can_focus", True)
+        self.query_one("#books-table").focus()
 
     def _show_reader(self) -> None:
         """Show reader view."""
@@ -584,6 +588,12 @@ class RSVPApp(App[Any]):
             self.query_one("#reader-container").remove_class("hidden")
             self.query_one("#settings-view").add_class("hidden")
             self.sub_title = self.current_book.title
+
+            # Make the search input unfocusable so it can't intercept reader
+            # hotkeys (e.g. "l" for library).  restore_can_focus undoes this.
+            inp = self.query_one("#search-input")
+            self._prev_can_focus = inp.can_focus
+            inp.can_focus = False
 
             # Initialize reader if needed
             if not self.reader:
@@ -599,6 +609,15 @@ class RSVPApp(App[Any]):
         self.query_one("#reader-container").add_class("hidden")
         self.query_one("#settings-view").remove_class("hidden")
         self.sub_title = "Settings"
+        # Also clear search focus so keys route correctly
+        self.query_one("#search-input").can_focus = False
+
+    def action_show_settings(self) -> None:
+        """Show settings (s key)."""
+        if self._new_ui:
+            self.push_screen(SettingsScreen(config=self.config))
+            return
+        self._show_settings()
 
     def _init_reader(self) -> None:
         """Initialize the reader display."""
