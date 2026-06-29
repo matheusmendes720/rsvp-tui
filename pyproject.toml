@@ -5,6 +5,12 @@ description = "RSVP speed-reading TUI — workspace + uv task surface"
 requires-python = ">=3.10"
 readme = "README.md"
 license = {text = "MIT"}
+dependencies = [
+    # rsvp-tui: the main Python TUI package
+    "rsvp-tui",
+    # rsvp-core: the Rust PyO3 backend (built by maturin)
+    "rsvp-core>=0.1.0",
+]
 
 # A minimal build-system so uv can produce a wheel that bundles
 # the ``scripts/`` Python package (the source of every
@@ -30,7 +36,6 @@ dependencies = [
     # ``[project.scripts]`` table below is the source of every
     # ``rsvp-*`` console script; those live in ``rsvp_workspace``
     # which re-exports ``main`` functions from ``scripts.*``.
-    "rsvp-tui",
 ]
 
 [tool.setuptools]
@@ -95,24 +100,14 @@ managed = true
 package = true
 
 [tool.uv.sources]
-# rsvp-tui is the Python frontend. Treat it as a path source so
-# uv installs it as an editable package. maturin builds the
-# rsvp-core pyo3 extension during rsvp-tui's install.
-rsvp-tui  = { path = "./rsvp-tui", editable = true }
-# rsvp-core is a Cargo crate at ./rsvp-core/ that ships a
-# maturin-friendly pyproject.toml in the same directory. uv
-# installs it from that path, which triggers maturin to build
-# the pyo3 extension. Pinned to ``rsvp-tui`` (not the workspace)
-# because rsvp-tui is the package that actually depends on it.
-rsvp-core = { path = "./rsvp-core", editable = true }
+rsvp-tui = { workspace = true }
+rsvp-core = { workspace = true }
 
 [tool.uv.workspace]
-# rsvp-tui is a path source above, not a workspace member. The
-# workspace here is a single-package one: just the root
-# (``rsvp-workspace``) which exists only to ship the
-# ``rsvp-*`` console scripts. Removing the member list keeps
-# uv from trying to install the same package twice.
-members = []
+members = [
+    "rsvp-tui",
+    "rsvp-core",
+]
 
 # ---- Quality tool config (mirrors rsvp-tui/pyproject.toml) -----------------
 [tool.ruff]

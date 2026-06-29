@@ -14,6 +14,7 @@ from __future__ import annotations
 import sys
 import traceback
 from pathlib import Path
+from typing import Any
 
 from rich.align import Align
 from rich.console import RenderableType
@@ -89,7 +90,7 @@ class RSVPWordDisplay(Static):
     is_playing: reactive[bool] = reactive(False)
     enable_orp: reactive[bool] = reactive(True)
 
-    def __init__(self, words: list[str], **kwargs):
+    def __init__(self, words: list[str], **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.words = words
         self.total_words = len(words)
@@ -128,13 +129,16 @@ class RSVPWordDisplay(Static):
 
         # Combine
         content = Text.assemble(
-            Text("\n"), Align.center(word_text), Text("\n"), Align.center(status)
+            Text("\n"),
+            Align.center(word_text),  # type: ignore[arg-type]
+            Text("\n"),
+            Align.center(status),  # type: ignore[arg-type]
         )
 
         border = "red" if self.is_playing else "blue"
         return Panel(content, border_style=border)
 
-    def _format_orp(self, parts) -> Text:
+    def _format_orp(self, parts: Any) -> Text:
         """Format word with ORP character highlighted."""
         result = Text()
         if parts.before_orp:
@@ -144,34 +148,34 @@ class RSVPWordDisplay(Static):
             result.append(parts.after_orp, style="white")
         return result
 
-    def watch_word_index(self, index: int):
+    def watch_word_index(self, index: int) -> None:
         """React to word index changes."""
         if self.on_word_change:
             self.on_word_change(index)
         if index >= self.total_words and self.on_complete:
             self.on_complete()
 
-    def toggle_play(self):
+    def toggle_play(self) -> None:
         """Toggle play/pause state."""
         if self.is_playing:
             self.pause()
         else:
             self.play()
 
-    def play(self):
+    def play(self) -> None:
         """Start reading."""
         if not self.is_playing and self.word_index < self.total_words:
             self.is_playing = True
             self._schedule_next()
 
-    def pause(self):
+    def pause(self) -> None:
         """Pause reading."""
         self.is_playing = False
         if self._timer:
             self._timer.stop()
             self._timer = None
 
-    def _schedule_next(self):
+    def _schedule_next(self) -> None:
         """Schedule the next word."""
         if not self.is_playing or self.word_index >= self.total_words:
             return
@@ -182,7 +186,7 @@ class RSVPWordDisplay(Static):
 
         self._timer = self.set_timer(delay / 1000, self._advance)
 
-    def _advance(self):
+    def _advance(self) -> None:
         """Advance to next word."""
         if self.is_playing:
             self.word_index += 1
@@ -191,31 +195,31 @@ class RSVPWordDisplay(Static):
             else:
                 self.is_playing = False
 
-    def next_word(self):
+    def next_word(self) -> None:
         """Manual next word."""
         if self.word_index < self.total_words - 1:
             self.word_index += 1
 
-    def prev_word(self):
+    def prev_word(self) -> None:
         """Manual previous word."""
         if self.word_index > 0:
             self.word_index -= 1
 
-    def jump_to(self, index: int):
+    def jump_to(self, index: int) -> None:
         """Jump to specific word."""
         self.word_index = max(0, min(index, self.total_words - 1))
 
-    def jump_to_percentage(self, percentage: float):
+    def jump_to_percentage(self, percentage: float) -> None:
         """Jump to percentage position."""
         index = int((percentage / 100) * self.total_words)
         self.jump_to(index)
 
-    def restart(self):
+    def restart(self) -> None:
         """Restart from beginning."""
         self.pause()
         self.word_index = 0
 
-    def change_speed(self, delta: int):
+    def change_speed(self, delta: int) -> None:
         """Change reading speed."""
         self.wpm = max(100, min(1000, self.wpm + delta))
 
@@ -225,7 +229,7 @@ class RSVPWordDisplay(Static):
 # =============================================================================
 
 
-class LibraryScreen(Screen):
+class LibraryScreen(Screen[Any]):
     """Screen for browsing and managing the book library."""
 
     BINDINGS = [
@@ -236,7 +240,7 @@ class LibraryScreen(Screen):
         Binding("escape", "app.pop_screen", "Back"),
     ]
 
-    def __init__(self, library: LibraryManager, **kwargs):
+    def __init__(self, library: LibraryManager, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.library = library
         self.selected_book_id: str | None = None
@@ -249,7 +253,7 @@ class LibraryScreen(Screen):
             yield Label("📚 Library", id="library-title")
             yield Input(placeholder="Search books...", id="search")
 
-            table = DataTable(id="books-table")
+            table: DataTable[Any] = DataTable(id="books-table")
             table.add_columns("Title", "Author", "Progress", "Last Read", "Words", "Type")
             table.cursor_type = "row"
             yield table
@@ -261,7 +265,7 @@ class LibraryScreen(Screen):
 
         yield Footer()
 
-    def on_mount(self):
+    def on_mount(self) -> None:
         """Load books on mount."""
         try:
             self._load_books()
@@ -269,7 +273,7 @@ class LibraryScreen(Screen):
             telemetry_error("app_complete.LibraryScreen.on_mount", exc)
             raise
 
-    def _load_books(self, search: str = ""):
+    def _load_books(self, search: str = "") -> None:
         """Load books into the table."""
         try:
             table = self.query_one("#books-table", DataTable)
@@ -296,16 +300,16 @@ class LibraryScreen(Screen):
             telemetry_error("app_complete.LibraryScreen._load_books", exc)
             self.notify(f"Error loading library: {exc}", severity="error")
 
-    def on_input_changed(self, event: Input.Changed):
+    def on_input_changed(self, event: Input.Changed) -> None:
         """Handle search input."""
         if event.input.id == "search":
             self._load_books(search=event.value)
 
-    def on_data_table_row_selected(self, event: DataTable.RowSelected):
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle book selection."""
         self.selected_book_id = str(event.row_key)
 
-    def on_button_pressed(self, event: Button.Pressed):
+    def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         btn_id = event.button.id
         if btn_id == "btn-read":
@@ -315,18 +319,18 @@ class LibraryScreen(Screen):
         elif btn_id == "btn-delete":
             self.action_delete_book()
 
-    def action_read_book(self):
+    def action_read_book(self) -> None:
         """Read the selected book."""
         if self.selected_book_id:
             book = self.library.get_book(self.selected_book_id)
             if book:
-                self.app.push_screen(ReaderScreen(book, self.library, self.app.note_manager))
+                self.app.push_screen(ReaderScreen(book, self.library, self.app.note_manager))  # type: ignore[attr-defined]
 
-    def action_import_book(self):
+    def action_import_book(self) -> None:
         """Show import dialog."""
         self.app.push_screen(ImportScreen(self.library))
 
-    def action_delete_book(self):
+    def action_delete_book(self) -> None:
         """Delete the selected book."""
         if self.selected_book_id:
             book = self.library.get_book(self.selected_book_id)
@@ -339,7 +343,7 @@ class LibraryScreen(Screen):
 # =============================================================================
 
 
-class ReaderScreen(Screen):
+class ReaderScreen(Screen[Any]):
     """Screen for RSVP reading."""
 
     BINDINGS = [
@@ -357,7 +361,7 @@ class ReaderScreen(Screen):
         Binding("escape", "go_back", "Back"),
     ]
 
-    def __init__(self, book: Book, library: LibraryManager, note_manager: NoteManager, **kwargs):
+    def __init__(self, book: Book, library: LibraryManager, note_manager: NoteManager, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.book = book
         self.library = library
@@ -393,7 +397,7 @@ class ReaderScreen(Screen):
 
         yield Footer()
 
-    def on_mount(self):
+    def on_mount(self) -> None:
         """Initialize reader on mount."""
         try:
             self.words = self.library.load_words(self.book.id)
@@ -405,9 +409,9 @@ class ReaderScreen(Screen):
                 display = self.query_one("#rsvp-display", RSVPWordDisplay)
                 display.words = self.words
                 display.word_index = self.book.current_word_index
-                display.on_word_change = self._on_word_change
-                display.on_complete = self._on_complete
-                display.enable_orp = self.app.config.enable_orp
+                display.on_word_change = self._on_word_change  # type: ignore[assignment]
+                display.on_complete = self._on_complete  # type: ignore[assignment]
+                display.enable_orp = self.app.config.enable_orp  # type: ignore[attr-defined]
                 self.rsvp_display = display
 
                 self._update_notes_display()
@@ -417,7 +421,7 @@ class ReaderScreen(Screen):
             telemetry_error("app_complete.ReaderScreen.on_mount", exc)
             raise
 
-    def _parse_file(self, path: Path):
+    def _parse_file(self, path: Path) -> None:
         """Parse file to extract words."""
         try:
             suffix = path.suffix.lower()
@@ -442,7 +446,7 @@ class ReaderScreen(Screen):
             telemetry_error("app_complete.ReaderScreen._parse_file", e)
             self.notify(f"Error parsing file: {e}", severity="error")
 
-    def _on_word_change(self, index: int):
+    def _on_word_change(self, index: int) -> None:
         """Handle word change."""
         self.book.current_word_index = index
 
@@ -453,12 +457,12 @@ class ReaderScreen(Screen):
         # Update notes display
         self._update_notes_display()
 
-    def _on_complete(self):
+    def _on_complete(self) -> None:
         """Handle reading complete."""
         self.library.update_progress(self.book.id, self.book.word_count)
-        self.notify("🎉 Reading complete!", severity="success")
+        self.notify("🎉 Reading complete!", severity="success")  # type: ignore[arg-type]
 
-    def _update_notes_display(self):
+    def _update_notes_display(self) -> None:
         """Update notes sidebar."""
         if not self.rsvp_display:
             return
@@ -487,7 +491,7 @@ class ReaderScreen(Screen):
 
             notes_widget.update("\n".join(lines))
 
-    def on_button_pressed(self, event: Button.Pressed):
+    def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         btn_id = event.button.id
 
@@ -506,58 +510,58 @@ class ReaderScreen(Screen):
         elif btn_id == "btn-toggle-notes":
             self._toggle_notes()
 
-    def action_toggle_play(self):
+    def action_toggle_play(self) -> None:
         """Toggle play/pause."""
         if self.rsvp_display:
             self.rsvp_display.toggle_play()
             btn = self.query_one("#btn-play", Button)
             btn.label = "❚❚ Pause" if self.rsvp_display.is_playing else "▶ Play"
 
-    def action_prev_word(self):
+    def action_prev_word(self) -> None:
         """Previous word."""
         if self.rsvp_display:
             self.rsvp_display.prev_word()
 
-    def action_next_word(self):
+    def action_next_word(self) -> None:
         """Next word."""
         if self.rsvp_display:
             self.rsvp_display.next_word()
 
-    def action_speed_up(self):
+    def action_speed_up(self) -> None:
         """Increase speed."""
         if self.rsvp_display:
             self.rsvp_display.change_speed(25)
             self.notify(f"Speed: {self.rsvp_display.wpm} WPM")
 
-    def action_speed_down(self):
+    def action_speed_down(self) -> None:
         """Decrease speed."""
         if self.rsvp_display:
             self.rsvp_display.change_speed(-25)
             self.notify(f"Speed: {self.rsvp_display.wpm} WPM")
 
-    def action_jump_start(self):
+    def action_jump_start(self) -> None:
         """Jump to start."""
         if self.rsvp_display:
             self.rsvp_display.jump_to(0)
 
-    def action_jump_end(self):
+    def action_jump_end(self) -> None:
         """Jump to end."""
         if self.rsvp_display:
             self.rsvp_display.jump_to(self.rsvp_display.total_words - 1)
 
-    def action_toggle_orp(self):
+    def action_toggle_orp(self) -> None:
         """Toggle ORP highlighting."""
         if self.rsvp_display:
             self.rsvp_display.enable_orp = not self.rsvp_display.enable_orp
             status = "ON" if self.rsvp_display.enable_orp else "OFF"
             self.notify(f"ORP highlighting: {status}")
 
-    def action_restart(self):
+    def action_restart(self) -> None:
         """Restart reading."""
         if self.rsvp_display:
             self.rsvp_display.restart()
 
-    def action_add_note(self):
+    def action_add_note(self) -> None:
         """Open add note dialog."""
         if self.rsvp_display:
             try:
@@ -578,14 +582,14 @@ class ReaderScreen(Screen):
                 telemetry_error("app_complete.ReaderScreen.action_add_note", exc)
                 self.notify(f"Error adding note: {exc}", severity="error")
 
-    def action_go_back(self):
+    def action_go_back(self) -> None:
         """Go back to library."""
         if self.rsvp_display:
             self.rsvp_display.pause()
             self.library.update_progress(self.book.id, self.rsvp_display.word_index)
         self.app.pop_screen()
 
-    def _toggle_notes(self):
+    def _toggle_notes(self) -> None:
         """Toggle notes panel."""
         notes_panel = self.query_one("#notes-panel")
         if self.show_notes:
@@ -595,7 +599,7 @@ class ReaderScreen(Screen):
             notes_panel.remove_class("hidden")
             self.show_notes = True
 
-    def action_focus_mode(self):
+    def action_focus_mode(self) -> None:
         """Toggle focus mode."""
         self.focus_mode = not self.focus_mode
         if self.focus_mode:
@@ -611,7 +615,7 @@ class ReaderScreen(Screen):
 # =============================================================================
 
 
-class AddNoteScreen(ModalScreen):
+class AddNoteScreen(ModalScreen[Any]):
     """Modal screen for adding a note."""
 
     def __init__(
@@ -621,8 +625,8 @@ class AddNoteScreen(ModalScreen):
         word_context: str,
         note_manager: NoteManager,
         reader_screen: ReaderScreen,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
         self.book_id = book_id
         self.word_index = word_index
@@ -642,7 +646,7 @@ class AddNoteScreen(ModalScreen):
                 yield Button("Cancel", id="btn-cancel", variant="error")
                 yield Button("Save", id="btn-save", variant="success")
 
-    def on_button_pressed(self, event: Button.Pressed):
+    def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "btn-save":
             content = self.query_one("#note-content", TextArea).text
@@ -672,10 +676,10 @@ class AddNoteScreen(ModalScreen):
 # =============================================================================
 
 
-class ImportScreen(ModalScreen):
+class ImportScreen(ModalScreen[Any]):
     """Modal screen for importing a book."""
 
-    def __init__(self, library: LibraryManager, **kwargs):
+    def __init__(self, library: LibraryManager, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.library = library
 
@@ -689,7 +693,7 @@ class ImportScreen(ModalScreen):
                 yield Button("Cancel", id="btn-cancel", variant="error")
                 yield Button("Import", id="btn-import", variant="success")
 
-    def on_button_pressed(self, event: Button.Pressed):
+    def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "btn-import":
             path_str = self.query_one("#file-path", Input).value
@@ -713,12 +717,12 @@ class ImportScreen(ModalScreen):
 # =============================================================================
 
 
-class ConfirmDeleteScreen(ModalScreen):
+class ConfirmDeleteScreen(ModalScreen[Any]):
     """Modal screen to confirm book deletion."""
 
     def __init__(
-        self, book: Book, library: LibraryManager, library_screen: LibraryScreen, **kwargs
-    ):
+        self, book: Book, library: LibraryManager, library_screen: LibraryScreen, **kwargs: Any
+    ) -> None:
         super().__init__(**kwargs)
         self.book = book
         self.library = library
@@ -729,13 +733,13 @@ class ConfirmDeleteScreen(ModalScreen):
         with Grid(id="delete-dialog"):
             yield Label("🗑️ Confirm Delete", id="delete-title")
             yield Label(f"Are you sure you want to delete '{self.book.title}'?")
-            yield Label("This cannot be undone.", style="red")
+            yield Label("This cannot be undone.")
 
             with Horizontal(id="delete-buttons"):
                 yield Button("Cancel", id="btn-cancel")
                 yield Button("Delete", id="btn-delete", variant="error")
 
-    def on_button_pressed(self, event: Button.Pressed):
+    def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "btn-delete":
             self.library.delete_book(self.book.id)
@@ -750,7 +754,7 @@ class ConfirmDeleteScreen(ModalScreen):
 # =============================================================================
 
 
-class RSVPTUI(App):
+class RSVPTUI(App[Any]):
     """Main RSVP TUI Application."""
 
     CSS = """
@@ -820,7 +824,7 @@ class RSVPTUI(App):
         Binding("question", "show_help", "Help"),
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         try:
             super().__init__()
             self.config = Config.load()
@@ -830,7 +834,7 @@ class RSVPTUI(App):
             telemetry_error("app_complete.RSVPTUI.__init__", exc)
             raise
 
-    def on_mount(self):
+    def on_mount(self) -> None:
         """Start with library screen."""
         try:
             self.title = "RSVP Speed Reader"
@@ -839,11 +843,11 @@ class RSVPTUI(App):
             telemetry_error("app_complete.RSVPTUI.on_mount", exc)
             raise
 
-    def action_show_library(self):
+    def action_show_library(self) -> None:
         """Show library screen."""
         self.push_screen(LibraryScreen(self.library))
 
-    def action_show_help(self):
+    def action_show_help(self) -> None:
         """Show help."""
         help_text = """
 [b]Keyboard Shortcuts[/b]
@@ -872,7 +876,7 @@ class RSVPTUI(App):
 # =============================================================================
 
 
-def main():
+def main() -> None:
     """Run the application."""
     try:
         app = RSVPTUI()

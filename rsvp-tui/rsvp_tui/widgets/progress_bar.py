@@ -60,19 +60,19 @@ class ProgressBar(Static):
 
         return Panel(content, border_style="dim")
 
-    def update_progress(self, current: int, total: int | None = None):
+    def update_progress(self, current: int, total: int | None = None) -> None:
         """Update progress values."""
         self.current_word = current
         if total is not None:
             self.total_words = total
         self._update_time_remaining()
 
-    def set_wpm(self, wpm: int):
+    def set_wpm(self, wpm: int) -> None:
         """Update WPM and recalculate time."""
         self.wpm = wpm
         self._update_time_remaining()
 
-    def _update_time_remaining(self):
+    def _update_time_remaining(self) -> None:
         """Calculate and update time remaining."""
         if self.wpm == 0:
             self.time_remaining = ""

@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -6,7 +7,7 @@ from rsvp_tui.managers.config_manager import ConfigManager
 from rsvp_tui.models import CURRENT_SCHEMA_VERSION, Book, Config, Note
 
 
-def test_book_serialization(sample_book):
+def test_book_serialization(sample_book: Book) -> None:
     data = sample_book.to_dict()
     assert data["id"] == sample_book.id
     assert data["title"] == sample_book.title
@@ -18,7 +19,7 @@ def test_book_serialization(sample_book):
     assert len(restored.chapters) == 2
 
 
-def test_book_progress(sample_book):
+def test_book_progress(sample_book: Book) -> None:
     # 0/25 = 0%
     assert sample_book.completion_percentage == 0.0
 
@@ -31,7 +32,7 @@ def test_book_progress(sample_book):
     assert sample_book.completion_percentage == 100.0
 
 
-def test_note_to_markdown():
+def test_note_to_markdown() -> None:
     note = Note(
         id="note_1",
         book_id="book_1",
@@ -47,7 +48,7 @@ def test_note_to_markdown():
     assert "Interesting fact." in md
 
 
-def test_config_save_load(mock_config, tmp_path):
+def test_config_save_load(mock_config: Config, tmp_path: Path) -> None:
     mock_config.default_wpm = 450
     # Saving via the shim must write to mock_config.config_path,
     # which the conftest fixture already points at tmp_path.
@@ -59,7 +60,7 @@ def test_config_save_load(mock_config, tmp_path):
 # ---- Phase 0 verification tests --------------------------------------------
 
 
-def test_config_v1_migrates_to_v2(tmp_path):
+def test_config_v1_migrates_to_v2(tmp_path: Path) -> None:
     """A v1-shaped JSON file loads and migrates all the way to v3."""
     v1_payload = {
         # no schema_version, no v2 fields
@@ -93,7 +94,9 @@ def test_config_v1_migrates_to_v2(tmp_path):
     assert cfg.keybindings == {}
 
 
-def test_config_atomic_write_no_partial_file(tmp_path, monkeypatch):
+def test_config_atomic_write_no_partial_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """If os.replace fails, the real config file is not corrupted."""
     config_path = tmp_path / "config.json"
     config_path.write_text("ORIGINAL", encoding="utf-8")
@@ -101,7 +104,7 @@ def test_config_atomic_write_no_partial_file(tmp_path, monkeypatch):
     manager = ConfigManager(config_path)
 
     # Force os.replace to fail mid-save
-    def boom(src, dst):
+    def boom(src: str, dst: str) -> None:
         raise OSError("simulated crash")
 
     monkeypatch.setattr("os.replace", boom)
@@ -116,7 +119,7 @@ def test_config_atomic_write_no_partial_file(tmp_path, monkeypatch):
     assert not tmp.exists()
 
 
-def test_config_invalid_wpm_clamped():
+def test_config_invalid_wpm_clamped() -> None:
     """default_wpm is clamped to [min_wpm, max_wpm] in __post_init__."""
     # Too low
     cfg = Config(default_wpm=10, min_wpm=100, max_wpm=1000)
@@ -131,7 +134,7 @@ def test_config_invalid_wpm_clamped():
     assert cfg.default_wpm == 500
 
 
-def test_config_save_round_trip(tmp_path):
+def test_config_save_round_trip(tmp_path: Path) -> None:
     """save() -> load() round-trips all v2 fields."""
     config_path = tmp_path / "config.json"
     manager = ConfigManager(config_path)
@@ -149,7 +152,7 @@ def test_config_save_round_trip(tmp_path):
     assert loaded.keybindings == {"toggle_play": "space"}
 
 
-def test_config_corrupt_json_falls_back_to_defaults(tmp_path):
+def test_config_corrupt_json_falls_back_to_defaults(tmp_path: Path) -> None:
     """A corrupted config returns defaults rather than crashing."""
     config_path = tmp_path / "config.json"
     config_path.write_text("NOT JSON{", encoding="utf-8")

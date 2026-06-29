@@ -7,7 +7,7 @@ from rsvp_tui import (
 )
 
 
-def test_tokenization():
+def test_tokenization() -> None:
     text = "Hello, world! This is a test."
     words = tokenize_text(text)
     assert len(words) == 6
@@ -15,7 +15,7 @@ def test_tokenization():
     assert words[-1] == "test."
 
 
-def test_orp_calculation():
+def test_orp_calculation() -> None:
     assert calculate_orp_index("a") == 0
     assert calculate_orp_index("the") == 0
     assert calculate_orp_index("hello") == 1
@@ -23,7 +23,7 @@ def test_orp_calculation():
     assert calculate_orp_index("extraordinary") == 3
 
 
-def test_word_splitting():
+def test_word_splitting() -> None:
     # Test 'hello' -> ORP at index 1 ('e')
     parts = split_word_for_display("hello", 1)
     assert parts.before_orp == "h"
@@ -31,7 +31,7 @@ def test_word_splitting():
     assert parts.after_orp == "llo"
 
 
-def test_word_delay():
+def test_word_delay() -> None:
     wpm = 300  # 60000 / 300 = 200ms base delay
     pause_chars = [".", "!", "?"]
 
@@ -42,7 +42,7 @@ def test_word_delay():
     assert calculate_word_delay("word.", wpm, 2.0, pause_chars) == 400
 
 
-def test_reading_time_estimation():
+def test_reading_time_estimation() -> None:
     # 300 words at 300 WPM = 1 minute
     mins, secs = estimate_reading_time(300, 300)
     assert mins == 1

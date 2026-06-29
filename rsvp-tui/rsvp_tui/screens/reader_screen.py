@@ -142,7 +142,6 @@ class ReaderScreen(RSVPBaseScreen):
             yield NotePanel(
                 self.app.note_manager,  # type: ignore[attr-defined]
                 on_note_added=self._on_note_added,
-                id="note-panel",
             )
             # Navigation panel (shown based on config)
             if self.config.show_navigation_panel:
@@ -252,7 +251,7 @@ class ReaderScreen(RSVPBaseScreen):
         if new_id == self.current_figure_id:
             return
         was_playing = bool(self._figure and self._figure.is_playing)
-        prev_id = self.current_figure_id or None
+        prev_id = self.current_figure_id or ""
         telemetry.figure_swap(from_id=prev_id, to_id=new_id)
         self._mount_figure(new_id)
         if was_playing and self._figure is not None:
@@ -380,10 +379,7 @@ class ReaderScreen(RSVPBaseScreen):
     def action_toggle_navigation(self) -> None:
         """Ctrl+N: toggle the navigation panel visibility."""
         if self._nav_panel is not None:
-            if self._nav_panel.display:
-                self._nav_panel.hide()
-            else:
-                self._nav_panel.show()
+            self._nav_panel.display = not self._nav_panel.display
 
     def _navigate_chapter(self, delta: int) -> None:
         """Navigate by delta chapters (negative = prev, positive = next)."""
@@ -573,7 +569,8 @@ class ReaderScreen(RSVPBaseScreen):
         from ..managers.config_manager import ConfigManager
 
         manager = ConfigManager()
-        manager.update(default_wpm=wpm)
+        cfg = manager.load()
+        manager.update(cfg, default_wpm=wpm)
         self.config.default_wpm = wpm
         if self._figure is not None:
             self._figure.set_wpm(wpm)
@@ -586,7 +583,8 @@ class ReaderScreen(RSVPBaseScreen):
         from ..managers.config_manager import ConfigManager
 
         manager = ConfigManager()
-        manager.update(theme=theme)
+        cfg = manager.load()
+        manager.update(cfg, theme=theme)
         self.config.theme = theme
         self.app.notify(f"Theme: {theme}")
 

@@ -27,7 +27,7 @@ from __future__ import annotations
 import warnings
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> object:
     """PEP 562 lazy attribute access for ``ReaderDisplay``.
 
     The first time a caller does

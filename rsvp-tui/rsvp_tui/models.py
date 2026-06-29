@@ -30,7 +30,7 @@ class Chapter:
     end_word_index: int
     word_count: int = 0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.word_count == 0:
             self.word_count = self.end_word_index - self.start_word_index
 
@@ -95,7 +95,7 @@ class Book:
                 return chapter
         return None
 
-    def update_progress(self, word_index: int):
+    def update_progress(self, word_index: int) -> None:
         """Update reading progress."""
         self.current_word_index = min(word_index, self.word_count)
         self.last_read_date = datetime.now()

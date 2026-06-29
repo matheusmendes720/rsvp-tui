@@ -16,6 +16,7 @@ unset it) — no code changes needed.
 """
 
 import logging
+from typing import TYPE_CHECKING, Any
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -42,6 +43,31 @@ from .screens import (
 )
 
 log = logging.getLogger(__name__)
+
+
+# Protocol for the legacy ReaderDisplay interface (used when RSVP_NEW_UI=0).
+# The actual ReaderDisplay is a WordFigure under the hood, which only has
+# pause/next_word/prev_word/jump_to/increase_speed/decrease_speed via Figure.
+# Define the minimal subset actually called by app.py so type narrowing works.
+if TYPE_CHECKING:
+
+    class LegacyReader:
+        def toggle(self) -> None: ...
+        def next_word(self) -> None: ...
+        def prev_word(self) -> None: ...
+        def increase_speed(self, amount: int = 25) -> None: ...
+        def decrease_speed(self, amount: int = 25) -> None: ...
+        def jump_to(self, index: int) -> None: ...
+        def pause(self) -> None: ...
+        @property
+        def wpm(self) -> int: ...
+        @property
+        def word_index(self) -> int: ...
+        @property
+        def focus_mode(self) -> bool: ...
+        @focus_mode.setter
+        def focus_mode(self, value: bool) -> None: ...
+
 # Legacy widgets. These are only imported (and therefore only
 # emit the deprecation warning) when ``RSVP_NEW_UI`` is unset
 # or "0" — the new screens-based app doesn't need them. See
@@ -57,7 +83,7 @@ if not new_ui_enabled():
     )
 
 
-class RSVPApp(App):
+class RSVPApp(App[Any]):
     """Main RSVP TUI Application."""
 
     CSS = """
@@ -138,7 +164,7 @@ class RSVPApp(App):
     current_view = reactive("library")  # "library", "reader", "settings"
     focus_mode = reactive(False)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         # Single source of truth for the in-memory config. The
         # legacy single-screen path uses self.config directly; the
@@ -149,8 +175,8 @@ class RSVPApp(App):
         self.note_manager = NoteManager(self.config.notes_dir)
 
         self.current_book: Book | None = None
-        self.words: list = []
-        self.reader: ReaderDisplay | None = None
+        self.words: list[str] = []
+        self.reader: LegacyReader | None = None
         # When True, route to the Screen-based UI. Cached at
         # construction so behavior is consistent for the lifetime
         # of the process even if the env var is toggled.
@@ -214,7 +240,7 @@ class RSVPApp(App):
 
         yield Footer()
 
-    def on_mount(self):
+    def on_mount(self) -> None:
         """Initialize on mount.
 
         New UI: push LibraryScreen. Legacy UI: existing single-screen
@@ -327,7 +353,7 @@ class RSVPApp(App):
         from .screens.reader_screen import ReaderScreen
 
         if isinstance(self.screen, ReaderScreen):
-            self.screen.action_add_note()
+            self.screen.action_add_note()  # type: ignore[attr-defined]
         elif self.current_view == "reader" and self.reader and self.current_book:
             self._on_note_added(self.reader.word_index)
 
@@ -387,7 +413,7 @@ class RSVPApp(App):
         def on_file_selected(path: str | None) -> None:
             if path:
                 try:
-                    book = self.library_manager.import_book(path)
+                    book = self.library_manager.import_book(path)  # type: ignore[arg-type]
                     if book:
                         self._push_reader(book)
                 except Exception as e:
@@ -489,11 +515,11 @@ class RSVPApp(App):
         if not self._new_ui:
             return
         if message.next_id and message.next_id != self.config.figure_id:
-            self._config_manager.update(figure_id=message.next_id)
+            self._config_manager.update(self.config, figure_id=message.next_id)
             self.config.figure_id = message.next_id
             self.notify(f"Figure: {message.next_id}")
             log.info("figure.swap: %s -> %s", message.prev_id, message.next_id)
-            telemetry.figure_swap(from_id=message.prev_id, to_id=message.next_id)
+            telemetry.figure_swap(from_id=message.prev_id or "", to_id=message.next_id)
 
     def on_figure_state_advanced(self, message: FigureStateAdvanced) -> None:
         """Auto-save library progress every 100 words."""
@@ -536,7 +562,7 @@ class RSVPApp(App):
         self.config = self._config_manager.load()
         log.info("config.changed: keys=%s", list(message.keys))
 
-    def _show_library(self):
+    def _show_library(self) -> None:
         """Show library view."""
         self.current_view = "library"
         self.query_one("#library-view").remove_class("hidden")
@@ -548,7 +574,7 @@ class RSVPApp(App):
         library_view = self.query_one(LibraryView)
         library_view.load_books()
 
-    def _show_reader(self):
+    def _show_reader(self) -> None:
         """Show reader view."""
         if not self.current_book:
             return
@@ -566,7 +592,7 @@ class RSVPApp(App):
             telemetry_error("app.RSVPApp._show_reader", exc)
             self.notify(f"Reader error: {exc}", severity="error")
 
-    def _show_settings(self):
+    def _show_settings(self) -> None:
         """Show settings view."""
         self.current_view = "settings"
         self.query_one("#library-view").add_class("hidden")
@@ -574,7 +600,7 @@ class RSVPApp(App):
         self.query_one("#settings-view").remove_class("hidden")
         self.sub_title = "Settings"
 
-    def _init_reader(self):
+    def _init_reader(self) -> None:
         """Initialize the reader display."""
         if not self.current_book:
             return
@@ -603,8 +629,8 @@ class RSVPApp(App):
                 on_word_change=self._on_word_changed,
                 on_complete=self._on_reading_complete,
             )
-            self.reader = ReaderDisplay(state=state, params={"orp_enabled": self.config.enable_orp})
-            container.mount(self.reader)
+            self.reader = ReaderDisplay(state=state, params={"orp_enabled": self.config.enable_orp})  # type: ignore[operator]
+            container.mount(self.reader)  # type: ignore[arg-type]
         except Exception as exc:
             telemetry_error("app._init_reader", exc)
             log.exception("failed to initialise reader")
@@ -623,7 +649,7 @@ class RSVPApp(App):
         note_panel = self.query_one(NotePanel)
         note_panel.set_position(self.current_book.id, self.current_book.current_word_index)
 
-    def _on_book_selected(self, book: Book):
+    def _on_book_selected(self, book: Book) -> None:
         """Handle book selection."""
         self.current_book = book
         if self._new_ui:
@@ -631,12 +657,12 @@ class RSVPApp(App):
             return
         self._show_reader()
 
-    def _on_book_deleted(self, book_id: str):
+    def _on_book_deleted(self, book_id: str) -> None:
         """Handle book deletion."""
         self.library_manager.delete_book(book_id)
         self.notify("Book deleted")
 
-    def _on_word_changed(self, index: int):
+    def _on_word_changed(self, index: int) -> None:
         """Handle word change during reading."""
         if self.current_book:
             self.current_book.current_word_index = index
@@ -653,7 +679,7 @@ class RSVPApp(App):
             if index % 100 == 0:
                 self.library_manager.update_progress(self.current_book.id, index)
 
-    def _on_reading_complete(self):
+    def _on_reading_complete(self) -> None:
         """Handle reading completion."""
         if self.current_book:
             self.library_manager.update_progress(
@@ -662,12 +688,12 @@ class RSVPApp(App):
             )
             self.notify("Reading complete!")
 
-    def _on_note_added(self, word_index: int):
+    def _on_note_added(self, word_index: int) -> None:
         """Handle add note request."""
         # TODO: Open note dialog
         self.notify(f"Add note at word {word_index}")
 
-    def _on_settings_saved(self, config: Config | None):
+    def _on_settings_saved(self, config: Config | None) -> None:
         """Handle settings save."""
         if config:
             self.config = config
@@ -675,7 +701,7 @@ class RSVPApp(App):
         self._show_library()
 
     # Actions
-    def action_show_library(self):
+    def action_show_library(self) -> None:
         """Show library view."""
         if self._new_ui:
             self._push_library()
@@ -683,7 +709,7 @@ class RSVPApp(App):
         self.reader.pause() if self.reader else None
         self._show_library()
 
-    def action_toggle_panel(self):
+    def action_toggle_panel(self) -> None:
         """Toggle side panel."""
         note_panel = self.query_one(NotePanel)
         if note_panel.has_class("hidden"):
@@ -691,7 +717,7 @@ class RSVPApp(App):
         else:
             note_panel.add_class("hidden")
 
-    def action_show_help(self):
+    def action_show_help(self) -> None:
         """Show help dialog."""
         help_text = """
 [b]Keyboard Shortcuts[/b]
@@ -716,7 +742,7 @@ class RSVPApp(App):
 """
         self.notify(help_text, title="Help", timeout=10)
 
-    def on_unmount(self):
+    def on_unmount(self) -> None:
         """Cleanup on exit."""
         # Save final progress
         if self.current_book and self.reader:

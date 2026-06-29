@@ -42,7 +42,7 @@ class ChunkFigure(Figure):
     def _on_init(self) -> None:
         self._theme = get_theme("dark")
 
-    def render(self):  # type: ignore[override]
+    def render(self) -> object:  # type: ignore[override]
         if not self._words:
             return Panel(
                 Align.center(Text("Ready", style="dim")),

@@ -75,7 +75,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.all:
         targets += [ROOT / t for t in NUCLEAR]
 
-    seen: set = set()
+    seen: set[Path] = set()
     for t in targets:
         if t in seen:
             continue

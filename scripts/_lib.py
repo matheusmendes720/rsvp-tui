@@ -66,7 +66,7 @@ def run(
     *,
     cwd: Path | None = None,
     check: bool = True,
-    env: dict | None = None,
+    env: dict[str, str] | None = None,
     stream: bool = True,
 ) -> int:
     """Run ``cmd``; print a friendly header; return exit code.

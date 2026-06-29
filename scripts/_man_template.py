@@ -31,7 +31,7 @@ if str(_REPO) not in sys.path:
 
 def _load_version() -> str:
     try:
-        from rsvp_tui import __version__  # type: ignore
+        from rsvp_tui import __version__
 
         return __version__
     except Exception:
@@ -52,7 +52,7 @@ def _load_rust_cli_version() -> str:
         return "?"
     try:
         data = tomllib.loads(cargo.read_text(encoding="utf-8"))
-        return data.get("package", {}).get("version", "?")
+        return data.get("package", {}).get("version", "?")  # type: ignore[no-any-return]
     except Exception:
         return "?"
 
@@ -60,12 +60,12 @@ def _load_rust_cli_version() -> str:
 def _load_keybindings() -> list[tuple[str, str, str]]:
     """Return (action, key, description) triples."""
     try:
-        from rsvp_tui.keybindings import (  # type: ignore
+        from rsvp_tui.keybindings import (
             BINDING_DESCRIPTIONS,
             DEFAULT_BINDINGS,
         )
-        default_bindings: dict = DEFAULT_BINDINGS
-        binding_descriptions: dict = BINDING_DESCRIPTIONS
+        default_bindings: dict[str, str] = DEFAULT_BINDINGS
+        binding_descriptions: dict[str, str] = BINDING_DESCRIPTIONS
     except Exception:
         default_bindings = {}
         binding_descriptions = {}
@@ -84,7 +84,7 @@ def _load_keybindings() -> list[tuple[str, str, str]]:
 def _load_palette() -> list[tuple[str, str]]:
     """Return (command id, title) from the in-TUI command palette."""
     try:
-        from rsvp_tui.screens.command_palette import DEFAULT_COMMANDS  # type: ignore
+        from rsvp_tui.screens.command_palette import DEFAULT_COMMANDS
 
         return [(c.id, c.title) for c in DEFAULT_COMMANDS]
     except Exception:
@@ -100,7 +100,7 @@ def _load_figures() -> list[tuple[str, str, str, str]]:
     the man page automatically on the next ``rsvp-man``.
     """
     try:
-        from rsvp_tui.figures.registry import default_registry  # type: ignore
+        from rsvp_tui.figures.registry import default_registry
     except Exception:
         return []
     try:
@@ -134,7 +134,7 @@ def _load_themes() -> list[tuple[str, str]]:
     """
     # First preference: the live Python registry.
     try:
-        from rsvp_tui.themes import all_themes  # type: ignore
+        from rsvp_tui.themes import all_themes
 
         return [(t.id, t.name) for t in all_themes()]
     except Exception:

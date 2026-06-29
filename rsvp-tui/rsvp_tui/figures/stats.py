@@ -46,7 +46,7 @@ class StatsFigure(Figure):
         self._theme = get_theme("dark")
         self._wpm_history: deque[int] = deque(maxlen=int(self.get_param("history_size", 60)))
 
-    def render(self):  # type: ignore[override]
+    def render(self) -> object:  # type: ignore[override]
         current = self._current_word()
         if not self._words:
             return Panel(
@@ -75,7 +75,7 @@ class StatsFigure(Figure):
             title=self._progress_title(),
         )
 
-    def watch_word_index(self, index: int) -> None:  # type: ignore[override]
+    def watch_word_index(self, index: int) -> None:
         # Sample WPM on each advance. The base class's observer will
         # also fire (via super().watch_word_index) and emit
         # on_word_change / on_complete — that's intentional.

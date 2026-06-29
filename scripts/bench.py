@@ -76,8 +76,8 @@ def _make_text(words: int) -> str:
     return " ".join(text.split()[:words])
 
 
-def _bench(label: str, fn: Callable[[str], object], text: str, rounds: int) -> tuple[str, float]:
-    """Run ``fn(text)`` ``rounds`` times, return ``(label, best_ms)``.
+def _bench(label: str, fn: Callable[[str | list[str]], object], arg: str | list[str], rounds: int) -> tuple[str, float, float]:
+    """Run ``fn(arg)`` ``rounds`` times, return ``(label, best_ms, mean_ms)``.
 
     We report the *best* of N rather than the mean: in CI
     machines the first run pays for OS page-cache warmup and
@@ -87,24 +87,24 @@ def _bench(label: str, fn: Callable[[str], object], text: str, rounds: int) -> t
     times_ms: list[float] = []
     for _ in range(rounds):
         t0 = time.perf_counter()
-        result = fn(text)
+        result = fn(arg)
         elapsed_ms = (time.perf_counter() - t0) * 1000.0
         # Force the result to be used so the optimiser doesn't
         # elide the call.
         if result is None:
-            return (label, float("nan"))
+            return (label, float("nan"), float("nan"))
         times_ms.append(elapsed_ms)
     best = min(times_ms)
     mean = statistics.mean(times_ms)
     return (label, best, mean)
 
 
-def _safe_call(label: str, fn, text: str, rounds: int):
+def _safe_call(label: str, fn: Callable[..., object], arg: str | list[str], rounds: int) -> tuple[str, float, float]:
     """Run a benchmark, gracefully handling the case where
     the Rust core isn't installed.
     """
     try:
-        return _bench(label, fn, text, rounds)
+        return _bench(label, fn, arg, rounds)
     except Exception as e:  # noqa: BLE001
         warn(f"{label} failed: {e}")
         return (label, float("nan"), float("nan"))
@@ -164,7 +164,7 @@ def main(argv: list[str] | None = None) -> int:
         # words and bench the whole pass.
         unique_words = list(dict.fromkeys(text.split()))[:5000]
 
-        def _py_orp_pass(words):
+        def _py_orp_pass(words: list[str]) -> list[int]:
             return [py_orp(w) for w in words]
 
         py_orp_res = _safe_call(
@@ -188,7 +188,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.op in ("orp", "all"):
             unique_words = list(dict.fromkeys(text.split()))[:5000]
 
-            def _rust_orp_pass(words):
+            def _rust_orp_pass(words: list[str]) -> list[int]:
                 return [rust.calculate_orp_index(w) for w in words]
 
             rust_orp_res = _safe_call(

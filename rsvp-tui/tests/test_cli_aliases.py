@@ -22,7 +22,7 @@ from rsvp_tui.cli import (
 # ---- Aliases registry ------------------------------------------------------
 
 
-def test_aliases_map_to_real_commands():
+def test_aliases_map_to_real_commands() -> None:
     """Every alias's target must be a registered command."""
     registered = set(cli.commands)
     for alias, target in ALIASES.items():
@@ -32,7 +32,7 @@ def test_aliases_map_to_real_commands():
         )
 
 
-def test_no_alias_collides_with_canonical_name():
+def test_no_alias_collides_with_canonical_name() -> None:
     """An alias must not be the same as a canonical name
     (otherwise it shadows itself)."""
     registered = set(cli.commands)
@@ -40,7 +40,7 @@ def test_no_alias_collides_with_canonical_name():
         assert alias not in registered, f"alias {alias!r} collides with a registered command"
 
 
-def test_no_two_aliases_share_target_unnecessarily():
+def test_no_two_aliases_share_target_unnecessarily() -> None:
     """Each canonical name is fine to have multiple aliases
     (``r`` + ``open`` -> ``read``). We only check that the alias
     keys are unique."""
@@ -50,7 +50,7 @@ def test_no_two_aliases_share_target_unnecessarily():
 # ---- RsvpGroup resolution --------------------------------------------------
 
 
-def test_get_command_resolves_alias_to_canonical():
+def test_get_command_resolves_alias_to_canonical() -> None:
     """``RsvpGroup.get_command`` returns the same command for an
     alias as for its canonical name."""
     # The cli is a RsvpGroup (set via ``cls=`` in the decorator).
@@ -61,7 +61,7 @@ def test_get_command_resolves_alias_to_canonical():
     assert canon is aliased, "alias 'r' must resolve to the same Command as 'read'"
 
 
-def test_get_command_returns_none_for_unknown():
+def test_get_command_returns_none_for_unknown() -> None:
     """Unknown command names return ``None`` (Click contract)."""
     ctx = cli.make_context("rsvp", [], resilient_parsing=True)
     assert cli.get_command(ctx, "nope") is None
@@ -70,7 +70,7 @@ def test_get_command_returns_none_for_unknown():
 # ---- COMMAND_GROUPS --------------------------------------------------------
 
 
-def test_every_registered_command_is_in_some_group():
+def test_every_registered_command_is_in_some_group() -> None:
     """If a command is registered on the group, it must appear in
     ``COMMAND_GROUPS`` (otherwise it shows up after the groups in
     ``--help``, which is fine, but the test catches drift)."""
@@ -82,9 +82,9 @@ def test_every_registered_command_is_in_some_group():
     assert not missing, f"registered commands not in COMMAND_GROUPS: {missing}"
 
 
-def test_command_groups_have_unique_commands():
+def test_command_groups_have_unique_commands() -> None:
     """No command may appear in two groups."""
-    seen: dict = {}
+    seen: dict[str, str] = {}
     for cat, cmds in COMMAND_GROUPS:
         for c in cmds:
             assert c not in seen, f"command {c!r} in both {seen[c]!r} and {cat!r}"
@@ -94,15 +94,15 @@ def test_command_groups_have_unique_commands():
 # ---- New helper subcommands exist ------------------------------------------
 
 
-def test_where_subcommand_exists():
+def test_where_subcommand_exists() -> None:
     assert "where" in cli.commands
 
 
-def test_version_subcommand_exists():
+def test_version_subcommand_exists() -> None:
     assert "version" in cli.commands
 
 
-def test_version_subcommand_does_not_shadow_click_version_option():
+def test_version_subcommand_does_not_shadow_click_version_option() -> None:
     """``--version`` is a Click option, ``version`` is a subcommand;
     they coexist. Verify the subcommand is reachable by name and
     that ``--version`` is still a valid option on the group."""

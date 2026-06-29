@@ -9,29 +9,29 @@ from rsvp_tui.themes import (
 )
 
 
-def test_three_themes_defined():
+def test_three_themes_defined() -> None:
     """We ship with at least 3 named themes (Phase 0 requirement)."""
     ids = set(THEMES.keys())
     assert {"dark", "light", "solarized"} <= ids
 
 
-def test_default_theme_is_dark():
+def test_default_theme_is_dark() -> None:
     assert default_theme().id == "dark"
 
 
-def test_get_theme_falls_back_for_unknown():
+def test_get_theme_falls_back_for_unknown() -> None:
     """An unknown theme id must not crash — fall back to dark."""
     theme = get_theme("nonexistent")
     assert theme.id == "dark"
 
 
-def test_get_theme_known_returns_itself():
+def test_get_theme_known_returns_itself() -> None:
     theme = get_theme("solarized")
     assert theme.id == "solarized"
     assert theme.orp == "bold #dc322f"
 
 
-def test_cycle_theme_wraps():
+def test_cycle_theme_wraps() -> None:
     """cycle_theme moves to the next theme in registration order."""
     ids = list(THEMES.keys())
     first = ids[0]
@@ -43,7 +43,7 @@ def test_cycle_theme_wraps():
     assert wrapped.id == first
 
 
-def test_all_themes_returns_list():
+def test_all_themes_returns_list() -> None:
     themes = all_themes()
     assert isinstance(themes, list)
     assert len(themes) == len(THEMES)

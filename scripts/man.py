@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
+import subprocess
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -42,7 +43,7 @@ def _view(page: Path) -> int:
         warn("`man` not found on PATH; printing raw page to stdout instead")
         sys.stdout.write(page.read_text(encoding="utf-8"))
         return 0
-    proc = __import__("subprocess").run(
+    proc = subprocess.run(
         ["man", "-l", "-", page],
         input=page.read_bytes(),
         check=False,

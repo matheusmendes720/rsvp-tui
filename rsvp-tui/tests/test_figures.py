@@ -2,7 +2,7 @@
 
 import pytest
 
-from rsvp_tui.figures.base import FigureState
+from rsvp_tui.figures.base import Figure, FigureState
 from rsvp_tui.figures.bionic import BionicFigure
 from rsvp_tui.figures.chunk import ChunkFigure
 from rsvp_tui.figures.line import LineFigure
@@ -19,8 +19,8 @@ WORDS_50 = tuple(f"word{i}" for i in range(50))
 assert len(WORDS_50) == 50
 
 
-def make_state(**overrides):
-    defaults = {
+def make_state(**overrides: object) -> FigureState:
+    defaults: dict[str, object] = {
         "words": tuple(WORDS_50),
         "word_index": 10,
         "wpm": 300,
@@ -30,13 +30,13 @@ def make_state(**overrides):
         "comma_pause_multiplier": 1.5,
     }
     defaults.update(overrides)
-    return FigureState(**defaults)
+    return FigureState(**defaults)  # type: ignore[arg-type]
 
 
 # ---- Registry tests --------------------------------------------------------
 
 
-def test_default_registry_has_eight_figures():
+def test_default_registry_has_eight_figures() -> None:
     reset_default_registry()
     reg = default_registry()
     assert len(reg) == 8
@@ -44,7 +44,7 @@ def test_default_registry_has_eight_figures():
     assert ids == ["word", "chunk", "line", "bionic", "spritz", "pacer", "minimap", "stats"]
 
 
-def test_registry_next_wraps():
+def test_registry_next_wraps() -> None:
     reset_default_registry()
     reg = default_registry()
     assert reg.next("stats").id == "word"
@@ -53,14 +53,14 @@ def test_registry_next_wraps():
     assert reg.next("nonexistent").id == "word"
 
 
-def test_registry_previous_wraps():
+def test_registry_previous_wraps() -> None:
     reset_default_registry()
     reg = default_registry()
     assert reg.previous("word").id == "stats"
     assert reg.previous("chunk").id == "word"
 
 
-def test_registry_by_index_modulo():
+def test_registry_by_index_modulo() -> None:
     reset_default_registry()
     reg = default_registry()
     assert reg.by_index(0).id == "word"
@@ -69,7 +69,7 @@ def test_registry_by_index_modulo():
     assert reg.by_index(16).id == "word"
 
 
-def test_custom_registry_isolation():
+def test_custom_registry_isolation() -> None:
     """Two separate registries don't see each other's figures."""
     reg_a = FigureRegistry()
     reg_b = FigureRegistry()
@@ -94,16 +94,16 @@ ALL_FIGURE_CLASSES = [
 
 
 @pytest.mark.parametrize("cls", ALL_FIGURE_CLASSES)
-def test_each_figure_renders_smoke(cls):
+def test_each_figure_renders_smoke(cls: type[Figure]) -> None:
     """Each figure constructs and renders without error."""
     fig = cls(make_state())
-    result = fig.render()
-    assert result is not None
+    result = fig.render()  # type: ignore[func-returns-value]
+    assert result is not None  # figures return ConsoleRenderable
     assert fig.word_index == 10
 
 
 @pytest.mark.parametrize("cls", ALL_FIGURE_CLASSES)
-def test_each_figure_pause_idempotent(cls):
+def test_each_figure_pause_idempotent(cls: type[Figure]) -> None:
     fig = cls(make_state(is_playing=False))
     fig.pause()
     fig.pause()
@@ -111,7 +111,7 @@ def test_each_figure_pause_idempotent(cls):
 
 
 @pytest.mark.parametrize("cls", ALL_FIGURE_CLASSES)
-def test_each_figure_jump_to_bounds(cls):
+def test_each_figure_jump_to_bounds(cls: type[Figure]) -> None:
     fig = cls(make_state())
     fig.jump_to(0)
     assert fig.word_index == 0
@@ -124,14 +124,14 @@ def test_each_figure_jump_to_bounds(cls):
 # ---- apply_params tests ----------------------------------------------------
 
 
-def test_apply_params_live_bionic():
+def test_apply_params_live_bionic() -> None:
     """Changing bionic.bold_ratio updates the figure."""
     fig = BionicFigure(make_state())
     fig.apply_params({"bold_ratio": 0.8})
     assert fig.get_param("bold_ratio") == 0.8
 
 
-def test_apply_params_unknown_key_ignored():
+def test_apply_params_unknown_key_ignored() -> None:
     fig = WordFigure(make_state())
     fig.apply_params({"nonexistent_key": "ignored"})
     assert fig.get_param("nonexistent_key", "missing") == "missing"
@@ -140,14 +140,14 @@ def test_apply_params_unknown_key_ignored():
 # ---- FigureState update -----------------------------------------------------
 
 
-def test_update_state_preserves_position():
+def test_update_state_preserves_position() -> None:
     fig = WordFigure(make_state(word_index=10))
     new_state = make_state(word_index=25)
     fig.update_state(new_state)
     assert fig.word_index == 25
 
 
-def test_update_state_preserves_wpm():
+def test_update_state_preserves_wpm() -> None:
     fig = WordFigure(make_state(wpm=400))
     fig.update_state(make_state(wpm=600))
     assert fig.wpm == 600
@@ -156,7 +156,7 @@ def test_update_state_preserves_wpm():
 # ---- Each figure has the right metadata ------------------------------------
 
 
-def test_word_figure_metadata():
+def test_word_figure_metadata() -> None:
     fig = WordFigure()
     assert fig.id == "word"
     assert fig.name
@@ -165,37 +165,37 @@ def test_word_figure_metadata():
     assert "orp_enabled" in fig.default_params
 
 
-def test_chunk_figure_metadata():
+def test_chunk_figure_metadata() -> None:
     fig = ChunkFigure()
     assert fig.id == "chunk"
     assert "chunk_size" in fig.default_params
 
 
-def test_bionic_figure_metadata():
+def test_bionic_figure_metadata() -> None:
     fig = BionicFigure()
     assert fig.id == "bionic"
     assert "bold_ratio" in fig.default_params
 
 
-def test_spritz_figure_metadata():
+def test_spritz_figure_metadata() -> None:
     fig = SpritzFigure()
     assert fig.id == "spritz"
     assert "padding" in fig.default_params
 
 
-def test_pacer_figure_metadata():
+def test_pacer_figure_metadata() -> None:
     fig = PacerFigure()
     assert fig.id == "pacer"
     assert "dot_count" in fig.default_params
 
 
-def test_minimap_figure_metadata():
+def test_minimap_figure_metadata() -> None:
     fig = MiniMapFigure()
     assert fig.id == "minimap"
     assert "bar_width" in fig.default_params
 
 
-def test_stats_figure_metadata():
+def test_stats_figure_metadata() -> None:
     fig = StatsFigure()
     assert fig.id == "stats"
     assert "history_size" in fig.default_params

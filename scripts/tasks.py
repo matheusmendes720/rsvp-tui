@@ -41,7 +41,7 @@ _DESCRIPTIONS = {
 }
 
 
-def _load() -> dict:
+def _load() -> dict[str, str]:
     """Load the workspace ``pyproject.toml``.
 
     The task table is populated from two places:
@@ -55,7 +55,7 @@ def _load() -> dict:
     the one uv 0.11 actually honours.
     """
     data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
-    scripts: dict = dict(data.get("project", {}).get("scripts", {}))
+    scripts: dict[str, str] = dict(data.get("project", {}).get("scripts", {}))
     scripts.update(data.get("tool", {}).get("uv", {}).get("scripts", {}))
     return scripts
 

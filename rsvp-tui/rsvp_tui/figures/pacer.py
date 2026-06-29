@@ -43,7 +43,7 @@ class PacerFigure(Figure):
     def _on_init(self) -> None:
         self._theme = get_theme("dark")
 
-    def render(self):  # type: ignore[override]
+    def render(self) -> object:  # type: ignore[override]
         current = self._current_word()
         if not self._words:
             return Panel(

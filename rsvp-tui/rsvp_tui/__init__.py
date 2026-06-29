@@ -34,6 +34,10 @@ except ImportError:
     RUST_AVAILABLE = False
     # Fall back to pure Python implementations
     from .fallbacks import (
+        Chapter,
+        DocumentMetadata,
+        ParseResult,
+        WordParts,
         calculate_orp_index,
         calculate_word_delay,
         calculate_word_frequency_distribution,
@@ -50,40 +54,6 @@ except ImportError:
         split_word_for_display,
         tokenize_text,
     )
-
-    # Create placeholder classes (only when Rust not available)
-    class ParseResult:
-        def __init__(self, title, author, plain_text):
-            self.title = title
-            self.author = author
-            self.plain_text = plain_text
-            self.word_count = len(plain_text.split())
-            self.chapters = []
-            self.metadata = None
-
-    class Chapter:
-        def __init__(self, title, start_word_index, end_word_index):
-            self.title = title
-            self.start_word_index = start_word_index
-            self.end_word_index = end_word_index
-            self.content = ""
-
-        def word_count(self):
-            return self.end_word_index - self.start_word_index
-
-    class WordParts:
-        def __init__(self, before_orp, orp_char, after_orp):
-            self.before_orp = before_orp
-            self.orp_char = orp_char
-            self.after_orp = after_orp
-
-    class DocumentMetadata:
-        def __init__(self, title="", author="", language="en", description=""):
-            self.title = title
-            self.author = author
-            self.language = language
-            self.description = description
-
 
 # Aliases for path-based parsing (not in rsvp_core, always available from fallbacks)
 from .fallbacks import parse_epub_path, parse_pdf_path  # noqa: E402

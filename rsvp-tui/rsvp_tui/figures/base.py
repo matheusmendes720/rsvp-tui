@@ -169,7 +169,7 @@ class Figure(Static):
         """Hook for subclasses to do extra setup (e.g. create children)."""
         pass
 
-    def render(self):  # type: ignore[override]
+    def render(self) -> None:  # type: ignore[override]
         """Return a Rich renderable for the current state.
 
         Subclasses must implement. The base implementation raises
@@ -292,7 +292,7 @@ class Figure(Static):
 
     # ---- Reactive observers --------------------------------------------
 
-    def watch_word_index(self, index: int) -> None:  # type: ignore[override]
+    def watch_word_index(self, index: int) -> None:
         if self._on_word_change is not None:
             try:
                 self._on_word_change(index)

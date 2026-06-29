@@ -243,7 +243,7 @@ def _install_handlers(
         rsvp_root.addHandler(file_handler)
 
 
-def _fmt_value(v) -> str:
+def _fmt_value(v: Any) -> str:
     """Coerce a value to a compact string for telemetry output."""
     if isinstance(v, Path):
         return str(v)

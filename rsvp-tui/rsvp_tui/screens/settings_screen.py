@@ -86,7 +86,7 @@ DISPLAY_FIELDS: list[dict[str, Any]] = [
     _bool_field("focus_mode", "Start in Focus Mode"),
     _bool_field("show_progress_bar", "Show Progress Bar"),
     _bool_field("show_context_words", "Show Context Words"),
-    _choice_field("theme", "Theme", [(t, t) for t in all_themes()]),
+    _choice_field("theme", "Theme", [(t.id, t.id) for t in all_themes()]),
     _choice_field(
         "figure_id",
         "Default Figure",
@@ -244,8 +244,25 @@ class SettingsScreen(ModalScreen[None]):
                         "the command palette (Ctrl+P) for common actions.",
                         id="input-help",
                     )
-                with TabPane("Advanced", id="tab-advanced"):
-                    yield self._build_figure_params_tab()
+                with TabPane("Advanced", id="tab-advanced"), VerticalScroll():
+                    yield Label(
+                        "Per-figure parameters are stored under\n"
+                        "config.figure_params[figure_id]. Changes here apply\n"
+                        "the next time the figure is mounted.",
+                        id="advanced-help",
+                    )
+                    yield Label("Figure:", classes="field-label")
+                    yield Select(
+                        options=[(f.id, f.name) for f in default_registry().all()],
+                        value=default_registry().all()[0].id,
+                        id="adv-figure",
+                        allow_blank=False,
+                    )
+                    yield Vertical(id="adv-params")
+                    yield Static(
+                        "Tip: use Ctrl+R in this screen to reset all settings to defaults.",
+                        id="advanced-tip",
+                    )
             yield Static("", id="status-line")
 
     def _build_fields(self, fields: list[dict[str, Any]]) -> list[Any]:
@@ -347,19 +364,19 @@ class SettingsScreen(ModalScreen[None]):
                 except Exception:
                     continue
                 if f["type"] == "bool":
-                    patch[attr] = bool(widget.value)
+                    patch[attr] = bool(widget.value)  # type: ignore[attr-defined]
                 elif f["type"] == "choice":
-                    val = widget.value
+                    val = widget.value  # type: ignore[attr-defined]
                     if val is not None and val != Select.BLANK:
                         patch[attr] = val
                 elif f["type"] == "int":
                     try:
-                        patch[attr] = int(widget.value)
+                        patch[attr] = int(widget.value)  # type: ignore[attr-defined]
                     except (TypeError, ValueError):
                         continue
                 else:
                     try:
-                        patch[attr] = float(widget.value)
+                        patch[attr] = float(widget.value)  # type: ignore[attr-defined]
                     except (TypeError, ValueError):
                         continue
 
@@ -371,7 +388,7 @@ class SettingsScreen(ModalScreen[None]):
                 {k: v for k, v in patch.items() if k != "keybindings"},
             )
             try:
-                self._manager.update(**patch)
+                self._manager.update(self._config, **patch)
             except Exception as exc:
                 self._set_status(f"Save failed: {exc}", error=True)
                 return
@@ -388,7 +405,7 @@ class SettingsScreen(ModalScreen[None]):
         # Figure params tab.
         self._config.figure_params = dict(self._figure_params)
         try:
-            self._manager.update(figure_params=self._config.figure_params)
+            self._manager.update(self._config, figure_params=self._config.figure_params)
         except Exception as exc:
             self._set_status(f"Save failed: {exc}", error=True)
             return
@@ -404,7 +421,7 @@ class SettingsScreen(ModalScreen[None]):
         wid = event.input.id or ""
         if wid.startswith("fld-"):
             attr = wid[len("fld-") :]
-            result = event.input.validation_result
+            result = event.input.validation_result  # type: ignore[attr-defined]
             if result is not None and not result.is_valid:
                 errors = result.failure_descriptions
                 msg = "; ".join(errors) if errors else "Invalid"
@@ -469,7 +486,7 @@ class SettingsScreen(ModalScreen[None]):
     def _set_field_error(self, attr: str, msg: str) -> None:
         self._errors[attr] = msg
         try:
-            err = self.query_one(f"#err-{attr}")
+            err = self.query_one(f"#err-{attr}", Static)
             err.update(msg)
         except Exception:
             pass
@@ -477,7 +494,7 @@ class SettingsScreen(ModalScreen[None]):
     def _clear_field_error(self, attr: str) -> None:
         self._errors.pop(attr, None)
         try:
-            err = self.query_one(f"#err-{attr}")
+            err = self.query_one(f"#err-{attr}", Static)
             err.update("")
         except Exception:
             pass
@@ -510,7 +527,7 @@ class SettingsScreen(ModalScreen[None]):
         if fig_id is None or fig_id == Select.BLANK:
             return
         registry = default_registry()
-        fig = registry.get(fig_id)
+        fig = registry.get(fig_id)  # type: ignore[arg-type]
         if fig is None:
             return
 
@@ -518,7 +535,7 @@ class SettingsScreen(ModalScreen[None]):
         container.remove_children()
 
         current = dict(fig.default_params)
-        current.update(self._figure_params.get(fig_id, {}))
+        current.update(self._figure_params.get(fig_id, {}))  # type: ignore[arg-type]
 
         if not current:
             container.mount(Static(f"Figure '{fig.name}' has no tunable parameters."))
@@ -529,7 +546,7 @@ class SettingsScreen(ModalScreen[None]):
         for key, default_val in current.items():
             label = Label(key, classes="field-label")
             container.mount(label)
-            widget = self._make_param_widget(fig_id, key, default_val)
+            widget = self._make_param_widget(fig_id, key, default_val)  # type: ignore[arg-type]
             container.mount(widget)
 
     def _make_param_widget(self, fig_id: str, key: str, current: Any) -> Any:
@@ -541,6 +558,7 @@ class SettingsScreen(ModalScreen[None]):
         break for keys that contain ``-``).
         """
         wid = f"advp-{fig_id}-{key}"
+        widget: Any
         if isinstance(current, bool):
             widget = Checkbox(key, value=current, id=wid)
         elif isinstance(current, int):
@@ -568,7 +586,7 @@ class SettingsScreen(ModalScreen[None]):
         """Ctrl+R: confirm then reset to defaults."""
         self.app.push_screen(
             _ConfirmModal("Reset all settings to defaults?"),
-            self._on_reset_confirmed,
+            self._on_reset_confirmed,  # type: ignore[arg-type]
         )
 
     def _on_reset_confirmed(self, confirmed: bool) -> None:
@@ -594,12 +612,12 @@ class SettingsScreen(ModalScreen[None]):
                     continue
                 current = getattr(self._config, attr)
                 if f["type"] == "bool":
-                    widget.value = bool(current)
+                    widget.value = bool(current)  # type: ignore[attr-defined]
                 elif f["type"] == "choice":
                     if current is not None:
-                        widget.value = current
+                        widget.value = current  # type: ignore[attr-defined]
                 else:
-                    widget.value = str(current)
+                    widget.value = str(current)  # type: ignore[attr-defined]
         self._refresh_figure_params_form()
 
 

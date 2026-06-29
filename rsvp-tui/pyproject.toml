@@ -39,6 +39,8 @@ dependencies = [
     # The Rust backend is supplied by the workspace
     # (./rsvp-core/, built by maturin at install time).
     "rsvp-core>=0.1.0",
+    # File format support
+    "pymupdf>=1.23.0",      # PDF parsing
 ]
 
 [project.optional-dependencies]
@@ -52,7 +54,6 @@ dev = [
     "textual-dev>=1.0.0",
 ]
 all = [
-    "pymupdf>=1.23.0",      # PDF support fallback
     "ebooklib>=0.18.0",     # EPUB support fallback
     "markdown>=3.5.0",      # Markdown processing fallback
 ]

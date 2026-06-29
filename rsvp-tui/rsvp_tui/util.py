@@ -48,7 +48,7 @@ def safe_callback(default: Any = None, *, log_traceback: bool = True) -> Callabl
 
     def deco(fn: F) -> F:
         @functools.wraps(fn)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self: object, *args: Any, **kwargs: Any) -> Any:
             try:
                 return fn(self, *args, **kwargs)
             except Exception as exc:
@@ -80,7 +80,7 @@ def safe_callback(default: Any = None, *, log_traceback: bool = True) -> Callabl
     return deco
 
 
-def atomic_write_text(path, content: str, *, encoding: str = "utf-8") -> None:
+def atomic_write_text(path: Path | str, content: str, *, encoding: str = "utf-8") -> None:
     """Write ``content`` to ``path`` atomically (tmp + replace).
 
     Centralized so every file write in the package uses the same

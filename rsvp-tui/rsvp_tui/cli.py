@@ -363,7 +363,7 @@ def doctor() -> None:
     1 if anything is wrong (e.g. config or library missing).
     """
     cfg = Config.load()
-    report: dict = {
+    report: dict[str, object] = {
         "version": __version__,
         "config_path": str(cfg.config_path),
         "config_exists": cfg.config_path.exists(),

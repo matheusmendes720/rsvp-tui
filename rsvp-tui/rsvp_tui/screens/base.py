@@ -11,9 +11,13 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import TYPE_CHECKING, Any
 
 from textual.binding import Binding
 from textual.screen import Screen
+
+if TYPE_CHECKING:
+    from ..figures.registry import FigureRegistry
 
 from ..figures import default_registry
 from ..keybindings import resolve
@@ -34,7 +38,7 @@ def new_ui_enabled() -> bool:
     return val in {"1", "true", "yes", "on"}
 
 
-class RSVPBaseScreen(Screen):
+class RSVPBaseScreen(Screen[Any]):
     """Common base for the new screens.
 
     Why a base class: every screen needs the same Header/Footer
@@ -74,7 +78,7 @@ class RSVPBaseScreen(Screen):
         """Resolve a key for ``action`` honoring the user's overrides."""
         return resolve(action, self.config.keybindings)
 
-    def figure_registry(self):
+    def figure_registry(self) -> FigureRegistry:
         """The figure registry used by this screen."""
         return default_registry()
 

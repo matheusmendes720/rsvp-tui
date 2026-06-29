@@ -91,7 +91,7 @@ class FileExplorerScreen(ModalScreen[str | None]):
         """Focus the input on mount."""
         self.query_one("#file-input", Input).focus()
 
-    def action_dismiss(self, result: str | None = None) -> None:
+    def action_dismiss(self, result: str | None = None) -> None:  # type: ignore[override]
         """Cancel and dismiss."""
         log.debug("FileExplorer: dismissed (escape)")
         self.dismiss(None)

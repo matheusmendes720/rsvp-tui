@@ -29,27 +29,27 @@ from rsvp_tui.screens.settings_screen import (
 # ---- Field-list shape ----------------------------------------------------
 
 
-def test_reading_fields_nonempty():
+def test_reading_fields_nonempty() -> None:
     """The Reading tab has at least the WPM controls."""
     assert len(READING_FIELDS) >= 1
     attrs = {f["attr"] for f in READING_FIELDS}
     assert "default_wpm" in attrs
 
 
-def test_display_fields_have_theme_and_figure():
+def test_display_fields_have_theme_and_figure() -> None:
     """The Display tab exposes theme + figure choice."""
     attrs = {f["attr"] for f in DISPLAY_FIELDS}
     assert "theme" in attrs
     assert "figure_id" in attrs
 
 
-def test_timing_fields_have_punctuation_multiplier():
+def test_timing_fields_have_punctuation_multiplier() -> None:
     """The Timing tab exposes the punctuation multiplier."""
     attrs = {f["attr"] for f in TIMING_FIELDS}
     assert "punctuation_multiplier" in attrs
 
 
-def test_all_field_attrs_are_real_config_attrs():
+def test_all_field_attrs_are_real_config_attrs() -> None:
     """Every field references a real ``Config`` attribute.
 
     Catches typos like ``punctutation_multiplier`` (a real bug
@@ -61,14 +61,14 @@ def test_all_field_attrs_are_real_config_attrs():
             assert hasattr(cfg, f["attr"]), f"unknown Config attr: {f['attr']!r}"
 
 
-def test_all_field_labels_nonempty():
+def test_all_field_labels_nonempty() -> None:
     """Every field has a non-empty label."""
     for fld_list in (READING_FIELDS, DISPLAY_FIELDS, TIMING_FIELDS):
         for f in fld_list:
             assert f["label"].strip(), f"empty label for {f['attr']}"
 
 
-def test_int_fields_have_bounds():
+def test_int_fields_have_bounds() -> None:
     """Integer/float fields have a ``lo`` <= ``hi`` range."""
     for fld_list in (READING_FIELDS, DISPLAY_FIELDS, TIMING_FIELDS):
         for f in fld_list:
@@ -76,7 +76,7 @@ def test_int_fields_have_bounds():
                 assert f["lo"] <= f["hi"], f"bad bounds on {f['attr']}: {f['lo']} > {f['hi']}"
 
 
-def test_choice_fields_have_choices():
+def test_choice_fields_have_choices() -> None:
     """Choice fields have at least one option."""
     for fld_list in (READING_FIELDS, DISPLAY_FIELDS, TIMING_FIELDS):
         for f in fld_list:
@@ -86,7 +86,7 @@ def test_choice_fields_have_choices():
                     assert value and label
 
 
-def test_figure_id_choice_matches_registry():
+def test_figure_id_choice_matches_registry() -> None:
     """The default-figure choice is in sync with the registry."""
     choice = next(f for f in DISPLAY_FIELDS if f["attr"] == "figure_id")
     from rsvp_tui.figures import default_registry
@@ -96,12 +96,12 @@ def test_figure_id_choice_matches_registry():
     assert registry_ids == choice_ids
 
 
-def test_theme_choice_matches_themes():
+def test_theme_choice_matches_themes() -> None:
     """The theme choice is in sync with the themes module."""
     choice = next(f for f in DISPLAY_FIELDS if f["attr"] == "theme")
     from rsvp_tui.themes import all_themes
 
-    theme_ids = set(all_themes())
+    theme_ids = {t.id for t in all_themes()}
     choice_ids = {v for v, _ in choice["choices"]}
     assert theme_ids == choice_ids
 
@@ -109,7 +109,7 @@ def test_theme_choice_matches_themes():
 # ---- SettingsScreen direct construction ----------------------------------
 
 
-def test_settings_screen_default_config_loads():
+def test_settings_screen_default_config_loads() -> None:
     """Constructing without an explicit config loads defaults."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -118,7 +118,7 @@ def test_settings_screen_default_config_loads():
     assert screen._config.default_wpm >= screen._config.min_wpm
 
 
-def test_settings_screen_accepts_explicit_config():
+def test_settings_screen_accepts_explicit_config() -> None:
     """An explicit config is honored (not overwritten)."""
     cfg = Config()
     cfg.default_wpm = 425
@@ -128,7 +128,7 @@ def test_settings_screen_accepts_explicit_config():
     assert screen._config.default_wpm == 425
 
 
-def test_settings_screen_starts_with_no_errors():
+def test_settings_screen_starts_with_no_errors() -> None:
     """No fields are in error on a fresh screen."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -136,7 +136,7 @@ def test_settings_screen_starts_with_no_errors():
     assert screen._errors == {}
 
 
-def test_settings_screen_debounce_timer_initially_none():
+def test_settings_screen_debounce_timer_initially_none() -> None:
     """The debounce timer hasn't fired yet at construction."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -144,7 +144,7 @@ def test_settings_screen_debounce_timer_initially_none():
     assert screen._debounce_timer is None
 
 
-def test_settings_screen_figure_params_default_to_config():
+def test_settings_screen_figure_params_default_to_config() -> None:
     """The figure-params snapshot is built from the config."""
     cfg = Config()
     cfg.figure_params = {"word": {"orp_enabled": False}}
@@ -157,13 +157,13 @@ def test_settings_screen_figure_params_default_to_config():
 # ---- Confirm modal -------------------------------------------------------
 
 
-def test_confirm_modal_default_prompt():
+def test_confirm_modal_default_prompt() -> None:
     """The confirm modal has a default prompt."""
     m = _ConfirmModal()
     assert m._prompt
 
 
-def test_confirm_modal_custom_prompt():
+def test_confirm_modal_custom_prompt() -> None:
     """A custom prompt is honored."""
     m = _ConfirmModal("Really delete?")
     assert m._prompt == "Really delete?"
@@ -172,7 +172,7 @@ def test_confirm_modal_custom_prompt():
 # ---- Legacy shim ---------------------------------------------------------
 
 
-def test_legacy_settings_panel_shim_warns():
+def test_legacy_settings_panel_shim_warns() -> None:
     """Importing the legacy path emits a DeprecationWarning."""
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
@@ -186,7 +186,7 @@ def test_legacy_settings_panel_shim_warns():
     ), "expected a DeprecationWarning when accessing SettingsPanel"
 
 
-def test_legacy_settings_panel_resolves_to_new_class():
+def test_legacy_settings_panel_resolves_to_new_class() -> None:
     """The shim returns the new SettingsScreen."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -198,13 +198,13 @@ def test_legacy_settings_panel_resolves_to_new_class():
 # ---- ConfigChanged message shape -----------------------------------------
 
 
-def test_config_changed_message_default_empty_keys():
+def test_config_changed_message_default_empty_keys() -> None:
     """Default keys is an empty tuple (no edits)."""
     m = ConfigChanged()
     assert m.keys == ()
 
 
-def test_config_changed_message_carries_keys():
+def test_config_changed_message_carries_keys() -> None:
     """``keys`` is the names of the changed config attrs."""
     m = ConfigChanged(keys=("default_wpm", "theme"))
     assert m.keys == ("default_wpm", "theme")

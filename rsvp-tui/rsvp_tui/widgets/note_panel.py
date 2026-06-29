@@ -1,12 +1,17 @@
 """Note panel widget for viewing and adding notes."""
 
-from collections.abc import Callable
+from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
+from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.widgets import Button, Label, Static
 
 from ..managers.note_manager import NoteManager
+from ..models import Note
 
 
 class NotePanel(Vertical):
@@ -27,30 +32,30 @@ class NotePanel(Vertical):
     }
     """
 
-    current_book_id = reactive(None)
-    current_word_index = reactive(0)
-    notes = reactive(list)
+    current_book_id = reactive[str | None](None)
+    current_word_index = reactive[int](0)
+    notes: reactive[list[Note]] = reactive(list[Note]())
 
     def __init__(
         self,
         note_manager: NoteManager,
-        on_note_added: Callable | None = None,
+        on_note_added: Callable[[int], Any] | None = None,
     ):
         super().__init__()
         self.note_manager = note_manager
         self.on_note_added = on_note_added
 
-    def compose(self):
+    def compose(self) -> ComposeResult:
         """Compose the widget."""
         yield Label("Notes", id="notes-title")
         yield Button("Add Note", id="add-note-btn", variant="primary")
         yield Static(id="notes-list")
 
-    def watch_current_word_index(self, index: int):
+    def watch_current_word_index(self, index: int) -> None:
         """React to word index changes."""
         self._load_notes()
 
-    def _load_notes(self):
+    def _load_notes(self) -> None:
         """Load notes for current position."""
         if not self.current_book_id:
             return
@@ -62,7 +67,7 @@ class NotePanel(Vertical):
         )
         self._update_display()
 
-    def _update_display(self):
+    def _update_display(self) -> None:
         """Update the notes display."""
         notes_list = self.query_one("#notes-list", Static)
 
@@ -85,23 +90,23 @@ class NotePanel(Vertical):
 
         notes_list.update("\n".join(lines))
 
-    def on_button_pressed(self, event: Button.Pressed):
+    def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "add-note-btn":
             self.action_add_note()
 
-    def action_add_note(self):
+    def action_add_note(self) -> None:
         """Open add note dialog."""
         # This would open a modal dialog
         # For now, just a placeholder
         if self.on_note_added:
             self.on_note_added(self.current_word_index)
 
-    def set_position(self, book_id: str, word_index: int):
+    def set_position(self, book_id: str, word_index: int) -> None:
         """Update the current reading position."""
         self.current_book_id = book_id
         self.current_word_index = word_index
 
-    def refresh_notes(self):
+    def refresh_notes(self) -> None:
         """Refresh the notes display."""
         self._load_notes()

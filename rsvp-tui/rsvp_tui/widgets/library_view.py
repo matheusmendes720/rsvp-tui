@@ -1,7 +1,10 @@
 """Library view widget for browsing books."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 
+from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.widgets import DataTable, Input
@@ -29,8 +32,8 @@ class LibraryView(Vertical):
     }
     """
 
-    books = reactive(list)
-    selected_book_id = reactive(None)
+    books: reactive[list[Book]] = reactive(list[Book]())
+    selected_book_id: reactive[str | None] = reactive(None)
 
     def __init__(
         self,
@@ -44,12 +47,12 @@ class LibraryView(Vertical):
         self.on_delete_callback = on_delete
         self.search_query = ""
 
-    def compose(self):
+    def compose(self) -> ComposeResult:
         """Compose the widget."""
         yield Input(placeholder="Search books...", id="search-input")
         yield DataTable(id="books-table")
 
-    def on_mount(self):
+    def on_mount(self) -> None:
         """Initialize on mount."""
         table = self.query_one(DataTable)
         table.add_columns(
@@ -62,12 +65,12 @@ class LibraryView(Vertical):
         table.cursor_type = "row"
         self.load_books()
 
-    def load_books(self):
+    def load_books(self) -> None:
         """Load books from library."""
         self.books = self.library_manager.list_books(search=self.search_query or None)
         self._update_table()
 
-    def _update_table(self):
+    def _update_table(self) -> None:
         """Update the table with current books."""
         table = self.query_one(DataTable)
         table.clear()
@@ -85,29 +88,29 @@ class LibraryView(Vertical):
                 key=book.id,
             )
 
-    def on_input_changed(self, event: Input.Changed):
+    def on_input_changed(self, event: Input.Changed) -> None:
         """Handle search input changes."""
         if event.input.id == "search-input":
             self.search_query = event.value
             self.load_books()
 
-    def on_data_table_row_selected(self, event: DataTable.RowSelected):
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle book selection."""
         book_id = event.row_key.value
         self.selected_book_id = book_id
 
-        if self.on_select_callback:
+        if self.on_select_callback and book_id is not None:
             book = self.library_manager.get_book(book_id)
             if book:
                 self.on_select_callback(book)
 
-    def action_delete_selected(self):
+    def action_delete_selected(self) -> None:
         """Delete the selected book."""
         if self.selected_book_id and self.on_delete_callback:
             self.on_delete_callback(self.selected_book_id)
             self.load_books()
 
-    def action_refresh(self):
+    def action_refresh(self) -> None:
         """Refresh the book list."""
         self.load_books()
 

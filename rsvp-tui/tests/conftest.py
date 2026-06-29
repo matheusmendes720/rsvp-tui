@@ -1,10 +1,12 @@
+from pathlib import Path
+
 import pytest
 
 from rsvp_tui.models import Book, Chapter, Config
 
 
 @pytest.fixture
-def mock_config(tmp_path):
+def mock_config(tmp_path: Path) -> Config:
     """Create a mock config with temp paths."""
     config = Config(
         library_db_path=tmp_path / "library.db",
@@ -17,7 +19,7 @@ def mock_config(tmp_path):
 
 
 @pytest.fixture
-def sample_book():
+def sample_book() -> Book:
     """A sample Book object for testing."""
     chapters = [
         Chapter(title="Chapter 1", start_word_index=0, end_word_index=10, word_count=10),

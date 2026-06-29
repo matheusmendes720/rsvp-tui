@@ -11,10 +11,12 @@ smallest unit that demonstrates the fix.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
+from typing import Any
 
 import pytest
 
-from rsvp_tui import cli
+from rsvp_tui import cli  # noqa: F401
 
 pytestmark_async = pytest.mark.asyncio
 
@@ -22,7 +24,7 @@ pytestmark_async = pytest.mark.asyncio
 # ---- cli: 'os' is importable (doctor subcommand regression) ----------------
 
 
-def test_cli_module_has_os_import():
+def test_cli_module_has_os_import() -> None:
     """`rsvp doctor` crashed with NameError before Phase 0-6 fixes.
 
     This test guards the regression by checking that the module's
@@ -31,7 +33,7 @@ def test_cli_module_has_os_import():
     assert hasattr(cli, "os"), "rsvp_tui.cli must import os at module level"
 
 
-def test_cli_module_has_json_import():
+def test_cli_module_has_json_import() -> None:
     """`rsvp doctor` also needs json to dump the report."""
     assert hasattr(cli, "json"), "rsvp_tui.cli must import json at module level"
 
@@ -39,7 +41,9 @@ def test_cli_module_has_json_import():
 # ---- ConfigManager.save uses atomic_write_text ------------------------------
 
 
-def test_config_manager_save_delegates_to_atomic_write_text(tmp_path, monkeypatch):
+def test_config_manager_save_delegates_to_atomic_write_text(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The custom tmp+replace in save() was replaced by atomic_write_text.
 
     If save() re-introduces its own atomic write (e.g. via
@@ -52,12 +56,12 @@ def test_config_manager_save_delegates_to_atomic_write_text(tmp_path, monkeypatc
     target = tmp_path / "config.json"
     mgr = ConfigManager(target)
 
-    calls = []
+    calls: list[tuple[str, str]] = []
     real_atomic = atomic_write_text
 
-    def spy(path, content, **kwargs):
-        calls.append((str(path), content))
-        return real_atomic(path, content, **kwargs)
+    def spy(path: str, content: str, **kwargs: Any) -> None:
+            calls.append((str(path), content))
+            real_atomic(path, content, **kwargs)
 
     monkeypatch.setattr("rsvp_tui.managers.config_manager.atomic_write_text", spy)
 
@@ -70,37 +74,37 @@ def test_config_manager_save_delegates_to_atomic_write_text(tmp_path, monkeypatc
     assert '"schema_version"' in calls[0][1]
 
 
-# ---- Figure._cancel_timer resets _timer even on stop() failure -------------
+# ---- Figure._cancel_timer resets _timer even on stop() failure ---------------
 
 
-def test_cancel_timer_resets_reference_on_stop_failure():
+def test_cancel_timer_resets_reference_on_stop_failure() -> None:
     """If Timer.stop() raises, _timer must still be cleared so the
     next _schedule_next call doesn't reuse a stale pointer.
     """
     from rsvp_tui.figures.base import Figure, FigureState
 
     class _FakeTimer:
-        def stop(self):
+        def stop(self) -> None:
             raise RuntimeError("stop failed")
 
     fig = Figure(FigureState())
-    fig._timer = _FakeTimer()  # type: ignore[assignment]
+    fig._timer = _FakeTimer()
 
     fig._cancel_timer()
 
     assert fig._timer is None
 
 
-def test_cancel_timer_clears_reference_on_success():
+def test_cancel_timer_clears_reference_on_success() -> None:
     """Happy path: a successful stop() also clears _timer."""
     from rsvp_tui.figures.base import Figure, FigureState
 
     class _FakeTimer:
-        def stop(self):
+        def stop(self) -> None:
             pass
 
     fig = Figure(FigureState())
-    fig._timer = _FakeTimer()  # type: ignore[assignment]
+    fig._timer = _FakeTimer()
 
     fig._cancel_timer()
 
@@ -110,7 +114,7 @@ def test_cancel_timer_clears_reference_on_success():
 # ---- Figure.watch_word_index surfaces callback failures via app.notify ------
 
 
-def test_watch_word_index_logs_callback_error(caplog):
+def test_watch_word_index_logs_callback_error(caplog: pytest.LogCaptureFixture) -> None:
     """Even without an app, callback errors must be logged at
     exception level so they're not silently swallowed.
 
@@ -123,7 +127,7 @@ def test_watch_word_index_logs_callback_error(caplog):
     """
     from rsvp_tui.figures.base import Figure, FigureState
 
-    def _boom(_idx):
+    def _boom(_idx: int) -> None:
         raise RuntimeError("kaboom")
 
     fig = Figure(FigureState(words=("a",), on_word_change=_boom))
@@ -135,7 +139,7 @@ def test_watch_word_index_logs_callback_error(caplog):
     assert any("kaboom" in rec.message for rec in caplog.records)
 
 
-def test_watch_word_index_swallows_app_property_error():
+def test_watch_word_index_swallows_app_property_error() -> None:
     """The notify helper must not raise if ``figure.app`` raises.
 
     Before this fix, ``getattr(figure, "app", None)`` returned
@@ -147,7 +151,7 @@ def test_watch_word_index_swallows_app_property_error():
     """
     from rsvp_tui.figures.base import Figure, FigureState
 
-    def _boom(_idx):
+    def _boom(_idx: int) -> None:
         raise RuntimeError("noisy")
 
     fig = Figure(FigureState(words=("a", "b"), on_word_change=_boom))
@@ -170,7 +174,7 @@ def test_watch_word_index_swallows_app_property_error():
         (9999, 1500),  # too fast -> upper bound (matches Config.max_wpm)
     ],
 )
-def test_set_wpm_clamps_to_range(input_wpm, expected):
+def test_set_wpm_clamps_to_range(input_wpm: int, expected: int) -> None:
     from rsvp_tui.figures.base import Figure, FigureState
 
     fig = Figure(FigureState())
@@ -181,7 +185,7 @@ def test_set_wpm_clamps_to_range(input_wpm, expected):
 # ---- SettingsScreen: per-figure param widget carries (fig_id, key) attrs ---
 
 
-def test_make_param_widget_signature_is_stable():
+def test_make_param_widget_signature_is_stable() -> None:
     """The widget's id encodes the (fig_id, key) pair, but the
     side-channel attributes carry them too so handlers don't have
     to parse the id (which would break for hyphenated keys).
@@ -206,7 +210,7 @@ def test_make_param_widget_signature_is_stable():
     ], f"SettingsScreen._make_param_widget signature changed: {params}"
 
 
-def test_advp_id_format_starts_with_prefix():
+def test_advp_id_format_starts_with_prefix() -> None:
     """The widget id format is ``advp-<fig_id>-<key>`` so the
     handler can quickly filter on the prefix before consulting
     the side-channel attrs.
@@ -219,7 +223,7 @@ def test_advp_id_format_starts_with_prefix():
     assert "advp-chunk-window_size".startswith("advp-")
 
 
-def test_side_channel_attr_contract_documented():
+def test_side_channel_attr_contract_documented() -> None:
     """A future refactor must keep the side-channel attribute
     names stable; this test guards that contract.
     """
@@ -235,8 +239,8 @@ def test_side_channel_attr_contract_documented():
 
 
 def test_config_manager_update_raises_attribute_error_for_unknown_field(
-    tmp_path,
-):
+    tmp_path: Path,
+) -> None:
     """An unknown key passed to update() should raise clearly, not
     be silently dropped.
     """

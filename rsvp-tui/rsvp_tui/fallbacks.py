@@ -3,6 +3,7 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -124,7 +125,7 @@ def parse_markdown(text: str) -> ParseResult:
     """Simple markdown parser."""
     lines = text.split("\n")
     chapters = []
-    current_content = []
+    current_content: list[str] = []
     current_title = "Chapter 1"
     start_idx = 0
     all_words = []
@@ -204,7 +205,7 @@ def parse_epub_bytes(data: bytes) -> ParseResult:
     try:
         book = epub.read_epub(BytesIO(data))
     except Exception:
-        return ParseResult(title="EPUB Error", author="Unknown", chapters=[], word_count=0)
+        return ParseResult(title="EPUB Error", author="Unknown", plain_text="", chapters=[], word_count=0)
 
     return _parse_epub_book(book)
 
@@ -219,12 +220,12 @@ def parse_epub_path(file_path: Path) -> ParseResult:
     try:
         book = epub.read_epub(str(file_path))
     except Exception:
-        return ParseResult(title="EPUB Error", author="Unknown", chapters=[], word_count=0)
+        return ParseResult(title="EPUB Error", author="Unknown", plain_text="", chapters=[], word_count=0)
 
     return _parse_epub_book(book)
 
 
-def _parse_epub_book(book) -> ParseResult:
+def _parse_epub_book(book: Any) -> ParseResult:
     """Internal EPUB parsing from open book."""
     # Extract metadata
     title = "Unknown"
@@ -271,6 +272,7 @@ def _parse_epub_book(book) -> ParseResult:
     return ParseResult(
         title=title,
         author=author,
+        plain_text=" ".join(words),
         chapters=chapters,
         word_count=len(words),
     )
@@ -299,12 +301,12 @@ def parse_pdf_path(file_path: Path) -> ParseResult:
     try:
         doc = fitz.open(str(file_path))
     except Exception:
-        return ParseResult(title="PDF Error", author="Unknown", chapters=[], word_count=0)
+        return ParseResult(title="PDF Error", author="Unknown", plain_text="", chapters=[], word_count=0)
 
     return _parse_pdf_doc(doc)
 
 
-def _parse_pdf_doc(doc) -> ParseResult:
+def _parse_pdf_doc(doc: Any) -> ParseResult:
     """Internal PDF parsing from open document."""
 
     # Extract metadata
@@ -340,6 +342,7 @@ def _parse_pdf_doc(doc) -> ParseResult:
     return ParseResult(
         title=title,
         author=author,
+        plain_text=" ".join(words),
         chapters=chapters,
         word_count=len(words),
     )
@@ -422,7 +425,7 @@ def should_pause_at_punctuation(word: str, pause_chars: list[str]) -> bool:
 
 def calculate_word_frequency_distribution(words: list[str]) -> dict[str, int]:
     """Calculate word frequency."""
-    freq = {}
+    freq: dict[str, int] = {}
     for word in words:
         normalized = word.lower()
         freq[normalized] = freq.get(normalized, 0) + 1
@@ -462,3 +465,14 @@ def generate_reading_heatmap_data(words: list[str], window_size: int) -> list[fl
         heatmap.append(min(avg_len / 10, 1.0))
 
     return heatmap
+
+
+# Stub for when rsvp_core is not available (rsvp_core exports DocumentMetadata
+# but it is not re-exported from fallbacks since it has no pure-Python equivalent)
+@dataclass
+class DocumentMetadata:
+    """Stub document metadata when Rust backend is unavailable."""
+
+    title: str = ""
+    author: str = ""
+    word_count: int = 0

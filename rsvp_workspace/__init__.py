@@ -58,10 +58,10 @@ from scripts.cli_dispatch import main as rsvp_cli                  # noqa: F401
 # ``config``) share the same implementation; the underlying CLI
 # dispatches on argv[1]. We give each a distinct Python name so
 # the [project.scripts] table reads cleanly.
-rsvp_read = _rsvp_run       # type: ignore[assignment]
-rsvp_import = _rsvp_run     # type: ignore[assignment]
-rsvp_library = _rsvp_run    # type: ignore[assignment]
-rsvp_config = _rsvp_run     # type: ignore[assignment]
+rsvp_read = _rsvp_run
+rsvp_import = _rsvp_run
+rsvp_library = _rsvp_run
+rsvp_config = _rsvp_run
 
 
 def rsvp_dev() -> int:

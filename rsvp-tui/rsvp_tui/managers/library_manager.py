@@ -36,7 +36,7 @@ class LibraryManager:
             self.cache_dir,
         )
 
-    def _init_db(self):
+    def _init_db(self) -> None:
         """Initialize database schema."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
@@ -158,7 +158,7 @@ class LibraryManager:
 
         return book
 
-    def _save_book_to_db(self, book: Book):
+    def _save_book_to_db(self, book: Book) -> None:
         """Save book to database."""
         with sqlite3.connect(self.db_path) as conn:
             # Save book
@@ -242,7 +242,7 @@ class LibraryManager:
 
             return None
 
-    def update_progress(self, book_id: str, word_index: int):
+    def update_progress(self, book_id: str, word_index: int) -> None:
         """Update reading progress."""
         with sqlite3.connect(self.db_path) as conn:
             book = self.get_book(book_id)
@@ -272,7 +272,7 @@ class LibraryManager:
                     book.word_count,
                 )
 
-    def delete_book(self, book_id: str):
+    def delete_book(self, book_id: str) -> None:
         """Remove book from library."""
         with sqlite3.connect(self.db_path) as conn:
             # Get cache file path before deletion
@@ -301,7 +301,7 @@ class LibraryManager:
 
         try:
             with open(book.cache_file_path) as f:
-                words = json.load(f)
+                words: list[str] = json.load(f)
             log.debug("load_words: book_id=%s count=%d", book_id, len(words))
             return words
         except (FileNotFoundError, json.JSONDecodeError) as exc:

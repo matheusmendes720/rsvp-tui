@@ -1,8 +1,10 @@
+from pathlib import Path
+
 from rsvp_tui.managers.library_manager import LibraryManager
 from rsvp_tui.managers.note_manager import NoteManager
 
 
-def test_note_manager_lifecycle(tmp_path):
+def test_note_manager_lifecycle(tmp_path: Path) -> None:
     notes_dir = tmp_path / "notes"
     mgr = NoteManager(notes_dir)
     book_id = "test_book"
@@ -33,7 +35,7 @@ def test_note_manager_lifecycle(tmp_path):
     assert mgr.get_note_count(book_id) == 0
 
 
-def test_library_manager_db_init(tmp_path):
+def test_library_manager_db_init(tmp_path: Path) -> None:
     db_path = tmp_path / "library.db"
     LibraryManager(db_path)
     assert db_path.exists()
@@ -48,7 +50,7 @@ def test_library_manager_db_init(tmp_path):
         assert "chapters" in tables
 
 
-def test_library_manager_import_markdown(tmp_path):
+def test_library_manager_import_markdown(tmp_path: Path) -> None:
     db_path = tmp_path / "library.db"
     mgr = LibraryManager(db_path)
 

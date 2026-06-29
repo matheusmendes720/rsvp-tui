@@ -15,7 +15,7 @@ exit code so the failure is easy to spot.
 from __future__ import annotations
 
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from ._lib import err, header
 from .test import main as test_main
@@ -24,13 +24,13 @@ from .typecheck import main as typecheck_main
 
 # Lint is loaded lazily and run in --fix-disabled advisory mode:
 # if it returns non-zero we still keep going.
-def _lint_advisory(_args=None) -> int:
+def _lint_advisory(_args: list[str] | None = None) -> int:
     from .lint import main as lint_main
 
     return lint_main([])
 
 
-_STAGES: list[tuple[str, object, bool]] = [
+_STAGES: list[tuple[str, Callable[[list[str]], int], bool]] = [
     # (name, fn, is_hard_gate)
     # * is_hard_gate=True  → non-zero exit aborts the pipeline
     # * is_hard_gate=False → non-zero exit is logged, pipeline continues

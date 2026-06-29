@@ -15,7 +15,7 @@ from __future__ import annotations
 import warnings
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> object:
     """Lazy-attribute shim: import the new screen on demand.
 
     Using ``__getattr__`` (PEP 562) lets us forward ``SettingsPanel``

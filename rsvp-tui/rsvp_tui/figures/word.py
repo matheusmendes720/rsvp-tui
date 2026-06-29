@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Any
 
 from rich.align import Align
-from rich.console import Group
+from rich.console import ConsoleRenderable, Group
 from rich.panel import Panel
 from rich.text import Text
 
@@ -51,7 +51,7 @@ class WordFigure(Figure):
     def _on_init(self) -> None:
         self._theme = get_theme("dark")
 
-    def render(self):  # type: ignore[override]
+    def render(self) -> object:  # type: ignore[override]
         current = self._current_word()
         if not current:
             return Panel(
@@ -66,6 +66,7 @@ class WordFigure(Figure):
         else:
             word_display = Text(current, style=f"bold {self._theme.orp_anchor}")
 
+        display: ConsoleRenderable
         if self.get_param("show_context", True) and len(self._words) > 1:
             display = self._add_context_words(word_display)
         else:
@@ -86,7 +87,7 @@ class WordFigure(Figure):
             result.append(parts.after_orp, style=self._theme.orp_anchor)
         return result
 
-    def _add_context_words(self, current_display: Text) -> Group:
+    def _add_context_words(self, current_display: Text) -> ConsoleRenderable:
         window = max(0, int(self.get_param("context_window", 1)))
         lines = []
         for offset in range(window, 0, -1):

@@ -48,7 +48,7 @@ _NON_DEPRECATED = frozenset({"LibraryView", "NotePanel", "ProgressBar", "Navigat
 _resolved: dict[str, object] = {}
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> object:
     """PEP 562 lazy attribute access.
 
     * Non-deprecated widgets are imported normally on first
@@ -113,7 +113,7 @@ def __getattr__(name: str):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-def __dir__():
+def __dir__() -> list[str]:
     return sorted(
         list(globals().keys()) + list(_NON_DEPRECATED) + ["ReaderDisplay", "SettingsPanel"]
     )
