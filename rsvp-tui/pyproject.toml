@@ -35,7 +35,7 @@ dependencies = [
     "platformdirs>=4.0.0",
     "pydantic>=2.0.0",
     "toml>=0.10.2",
-    "typing-extensions>=4.0.0",
+    "typing-extensions>=4.16.0",
     # The Rust backend is supplied by the workspace
     # (./rsvp-core/, built by maturin at install time).
     "rsvp-core>=0.1.0",
