@@ -69,3 +69,5 @@ rsvp_workspace.egg-info/
 # Local PRDs / planning scratch
 prd.json
 pi-session-*.html
+rsvp-tui-rust/target/
+rsvp-tui-rust/Cargo.lock
