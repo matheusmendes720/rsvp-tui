@@ -59,6 +59,11 @@ tools/
 .claude/
 .gemini/
 .omg/
+.agents/
+.claude-flow/
+.omo/
+.swarm/
+.worktrees/
 GitNexus/
 .gitnexus/
 .gitnexusignore
@@ -71,3 +76,8 @@ prd.json
 pi-session-*.html
 rsvp-tui-rust/target/
 rsvp-tui-rust/Cargo.lock
+
+# Sibling / scratch workspaces that live alongside this repo
+chapter-map-tui/
+docs/superpowers/
+docs/SPEC.horizontal_frame.preview.txt
