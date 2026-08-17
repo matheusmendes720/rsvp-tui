@@ -36,12 +36,22 @@ def make_state(**overrides: object) -> FigureState:
 # ---- Registry tests --------------------------------------------------------
 
 
-def test_default_registry_has_eight_figures() -> None:
+def test_default_registry_has_nine_figures() -> None:
     reset_default_registry()
     reg = default_registry()
-    assert len(reg) == 8
+    assert len(reg) == 9
     ids = reg.ids()
-    assert ids == ["word", "chunk", "line", "bionic", "spritz", "pacer", "minimap", "stats"]
+    assert ids == [
+        "word",
+        "chunk",
+        "horizontal",
+        "line",
+        "bionic",
+        "spritz",
+        "pacer",
+        "minimap",
+        "stats",
+    ]
 
 
 def test_registry_next_wraps() -> None:
@@ -64,9 +74,9 @@ def test_registry_by_index_modulo() -> None:
     reset_default_registry()
     reg = default_registry()
     assert reg.by_index(0).id == "word"
-    assert reg.by_index(7).id == "stats"
-    assert reg.by_index(8).id == "word"
-    assert reg.by_index(16).id == "word"
+    assert reg.by_index(7).id == "minimap"
+    assert reg.by_index(8).id == "stats"
+    assert reg.by_index(18).id == "word"
 
 
 def test_custom_registry_isolation() -> None:

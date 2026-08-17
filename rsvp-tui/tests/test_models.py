@@ -86,8 +86,8 @@ def test_config_v1_migrates_to_v2(tmp_path: Path) -> None:
     # v1 fields preserved
     assert cfg.default_wpm == 425
     assert cfg.pause_chars == [".", "!", "?"]
-    # v3 fields populated with defaults (migrations 1→2→3 applied)
-    assert cfg.schema_version == CURRENT_SCHEMA_VERSION == 3
+    # v1 fields preserved and full migration chain (1→2→3→4) applied
+    assert cfg.schema_version == CURRENT_SCHEMA_VERSION
     assert cfg.theme == "dark"
     assert cfg.figure_id == "word"
     assert cfg.figure_params == {}
