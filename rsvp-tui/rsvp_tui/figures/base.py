@@ -367,5 +367,8 @@ class Figure(Static):
     def get_param(self, key: str, default: Any = None) -> Any:
         return self._params.get(key, default)
 
+    def set_param(self, key: str, value: Any) -> None:
+        self._params[key] = value
+
 
 __all__ = ["FigureState", "Figure"]

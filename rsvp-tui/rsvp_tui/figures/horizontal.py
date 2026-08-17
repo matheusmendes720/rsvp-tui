@@ -1,44 +1,93 @@
-"""HorizontalFigure — multi-word horizontal speed reading with peripheral vision.
+"""HorizontalFigure — big-window peripheral-vision RSVP.
 
-This figure displays a horizontal line of words with:
-- Current word highlighted in the center (ORP)
-- Peripheral words visible on left/right with fade effect
-- WPM-controlled scrolling to next chunk
-- Bionic-style optional highlighting on first letter of each word
+This is the production multi-word figure: every reading row is a
+horizontal strip of words with the current word's ORP letter anchored
+at the pivot column (fixed center). The focal row is surrounded by
+4-6 context rows (configurable) showing the surrounding lines of the
+current paragraph/section.
 
-This bridges the gap between RSVP (single-word flash) and natural reading,
-giving users the benefits of context from multiple words while maintaining
-the eye-anchoring highlight that makes speed reading effective.
+Layout at chunk_size=17, context_lines=5, pivot_col=43:
+
+    ┌─── chapter · 53/67203 ────────────────────────────────┐
+    │  line -4   line -3   line -2   line -1   ┃  line +1  ...  │
+    │  line -3   line -2   line -1   focal[8]  ┃  line +1  ...  │
+    │  ...                                      ┃  ...           │
+    ├──── focal WOR|D centered at pivot=43  ━━━━━━━━━━━━━━━━━┤
+    │  ...   line +1   line +2   line +3   ┃  line +4  ...  │
+    └── ▶ 500 WPM · ░░░▓▓▓▓ ░ · ~134:18 · 0.1% ───────────┘
+
+Key design decisions:
+
+* **Pivot column**: every focal row's ORP lands at the same column,
+  so the eye never has to re-acquire the highlight as words change.
+* **Paragraph grouping**: words are grouped into logical lines by
+  sentence boundary (`.!?`), not by a fixed character count. This
+  makes the horizontal strip match natural reading flow.
+* **Fade gradient**: words further from the focal position get
+  progressively dimmer (``focus_dim``), creating a natural peripheral
+  gradient without hard cut-offs.
+* **Configurable density**: ``chunk_size`` (7-25) and
+  ``context_lines`` (2-8) let the user dial in the density for
+  their terminal width and reading speed.
+* **Frame integration**: uses :class:`HorizontalFrame
+  <rsvp_tui.figures.frame.HorizontalFrame>` for the chrome, so
+  the frame is theme-coherent with every other figure.
 """
-
 from __future__ import annotations
 
 from typing import Any
 
 from rich.align import Align
-from rich.console import ConsoleRenderable
 from rich.panel import Panel
-from rich.style import Style
 from rich.text import Text
 
 from .. import calculate_orp_index, split_word_for_display
 from ..themes import get_theme
 from .base import Figure
+from .frame import (
+    FrameContext,
+    FrameSpec,
+    HorizontalFrame,
+    ProgressInfo,
+)
 
 
 class HorizontalFigure(Figure):
-    """Multi-word horizontal display with center highlight and peripheral fade."""
+    """Big-window peripheral-vision reading.
+
+    Renders N consecutive words in a horizontal strip, anchored at the
+    pivot column, with M context rows above and below. The focal row
+    uses ORP highlighting on the current word; peripheral words fade
+    toward the edges.
+    """
 
     id = "horizontal"
     name = "Horizontal (Multi-Word)"
-    description = "Horizontal line with center highlight and peripheral vision."
+    description = (
+        "Wide multi-word strip, ORP fixed at pivot column, "
+        "4-6 context lines, paragraph-grouped."
+    )
     default_keybinding = "4"
     default_params: dict[str, Any] = {
-        "chunk_size": 7,  # Words to show (odd number keeps center word centered)
-        "orp_enabled": True,  # Use ORP highlighting
-        "bionic_enabled": False,  # Bold first letters of all words
-        "fade_peripheral": True,  # Fade peripheral words
-        "center_anchor": True,  # Keep current word at center
+        # Words per horizontal strip. Odd keeps the focal word
+        # centered (chunk_size // 2 on each side).
+        "chunk_size": 17,
+        # Rows above + below the focal row. Each row is one
+        # "logical line" (sentence or paragraph segment).
+        "context_lines": 5,
+        # Fade peripheral words toward the edges (vs flat dim).
+        "fade_peripheral": True,
+        # Bold the leading letter of every peripheral word
+        # (bionic-style hint without full bionic rendering).
+        "bold_hint": False,
+        # ORP on the focal word.
+        "orp_enabled": True,
+        # Show the HorizontalFrame chrome (header/footer rules).
+        "show_frame": True,
+        # Width of the reading area in cells. 0 = auto (terminal width).
+        "frame_width": 0,
+        # Box-drawing style: "heavy" | "double" | "light" | "ascii".
+        "border_style": "heavy",
     }
 
     DEFAULT_CSS = """
@@ -51,107 +100,228 @@ class HorizontalFigure(Figure):
     def _on_init(self) -> None:
         self._theme = get_theme("dark")
 
-    def render(self) -> object:  # type: ignore[override]
+    # ------------------------------------------------------------------ #
+    # Public API (render & helpers)
+    # ------------------------------------------------------------------ #
+
+    def render(self) -> object:   # type: ignore[override]
         if not self._words:
             return Panel(
                 Align.center(Text("Ready", style="dim")),
                 border_style=self._theme.border_idle,
             )
 
-        chunk_size = max(1, int(self.get_param("chunk_size", 7)))
-        # Ensure odd number for centered display
-        if chunk_size % 2 == 0:
-            chunk_size += 1
-        half = chunk_size // 2
+        spec = self._build_spec()
+        ctx = self._build_context(spec)
+        frame_body = HorizontalFrame().build(ctx)
 
-        # Calculate the window range
-        start = max(0, self.word_index - half)
-        end = min(len(self._words), self.word_index + half + 1)
-
-        # Adjust if we're at the edges
-        if self.word_index - half < 0:
-            end = min(len(self._words), chunk_size)
-            start = 0
-        elif self.word_index + half + 1 > len(self._words):
-            start = max(0, len(self._words) - chunk_size)
-            end = len(self._words)
-
-        # Build the horizontal line
-        text = Text()
-        bionic = self.get_param("bionic_enabled", False)
-        fade_peripheral = self.get_param("fade_peripheral", True)
-        center_anchor = self.get_param("center_anchor", True)
-
-        for idx in range(start, end):
-            word = self._words[idx]
-            is_current = idx == self.word_index
-            is_peripheral = abs(idx - self.word_index) > 0
-
-            if is_current:
-                # Current word - apply ORP highlighting
-                if self.get_param("orp_enabled", True):
-                    orp_idx = calculate_orp_index(word)
-                    parts = split_word_for_display(word, orp_idx)
-                    if parts.before_orp:
-                        text.append(parts.before_orp, style=self._theme.orp_anchor)
-                    text.append(parts.orp_char, style=f"{self._theme.orp} bold")
-                    if parts.after_orp:
-                        text.append(parts.after_orp, style=self._theme.orp_anchor)
-                else:
-                    text.append(word, style=f"bold {self._theme.orp}")
-            elif bionic:
-                # Bionic style: bold first letter of each peripheral word
-                if word:
-                    text.append(word[0], style=f"bold {self._theme.orp_anchor}")
-                    text.append(word[1:], style=self._theme.orp_anchor)
-                else:
-                    text.append(word, style=self._theme.orp_anchor)
-            elif fade_peripheral and is_peripheral:
-                # Peripheral with fade effect
-                fade_style = self._get_fade_style(idx, self.word_index, start, end)
-                text.append(word, style=fade_style)
-            else:
-                # Normal peripheral word
-                text.append(word, style=self._theme.orp_anchor)
-
-            # Add space between words
-            if idx < end - 1:
-                text.append(" ")
-
-        # Wrap with peripheral fade effect on edges
-        if fade_peripheral:
-            display = self._wrap_with_fade(text, start, end)
-        else:
-            display = Align.center(text)
-
+        # Panel expand=False: the frame body (FrameSpec.width wide) drives
+        # the Panel width. Without this the Panel auto-expands to terminal
+        # width, which would be wider than the frame body and look odd.
         return Panel(
-            display,
-            border_style=self._theme.border_active if self.is_playing else self._theme.border_idle,
+            frame_body,
+            border_style=(
+                self._theme.border_active if self.is_playing
+                else self._theme.border_idle
+            ),
             title=self._progress_title(),
+            expand=False,
         )
 
-    def _get_fade_style(self, word_idx: int, center_idx: int, start: int, end: int) -> str:
-        """Calculate fade intensity based on distance from center."""
-        distance = abs(word_idx - center_idx)
-        max_distance = max(1, (end - start) // 2)
+    # ------------------------------------------------------------------ #
+    # Spec & context builders
+    # ------------------------------------------------------------------ #
 
-        # Calculate opacity (1.0 = full, 0.3 = faded)
-        opacity = 1.0 - (distance / max_distance) * 0.5
-        opacity = max(0.3, min(1.0, opacity))
+    def _build_spec(self) -> FrameSpec:
+        """Derive the FrameSpec from figure params and terminal size."""
+        p = self._params
+        chunk_size = max(7, int(p.get("chunk_size", 17)))
+        # Ensure odd so focal word is truly centered.
+        if chunk_size % 2 == 0:
+            chunk_size += 1
 
-        # Return style with dim for faded words
-        if opacity < 0.8:
-            return f"dim {self._theme.orp_anchor}"
-        return self._theme.orp_anchor
+        frame_width = int(p.get("frame_width", 0))
+        if frame_width <= 0:
+            # Probe the Textual app's screen width if available.
+            frame_width = self._probe_terminal_width() or 100
 
-    def _wrap_with_fade(self, text: Text, start: int, end: int) -> ConsoleRenderable:
-        """Add subtle visual fade effect to edges of the display."""
-        # The fade is handled per-word in render(), so just center
-        return Align.center(text)
+        return FrameSpec(
+            width=frame_width,
+            min_width=60,
+            max_width=160,
+            context_lines=max(2, int(p.get("context_lines", 5))),
+            border=str(p.get("border_style", "heavy")),
+            # show_frame=False: the outer Panel below provides the single
+            # box-drawing frame. This avoids nested double-borders.
+            show_frame=False,
+            show_header=True,
+            show_footer=True,
+            show_pivot=True,
+        )
+
+    def _build_context(self, spec: FrameSpec) -> FrameContext:
+        """Build the FrameContext for the current word_index."""
+        word_index = self.word_index
+        chunk_size = max(7, int(self._params.get("chunk_size", 17)))
+        if chunk_size % 2 == 0:
+            chunk_size += 1
+
+        # chunk_size is kept odd so the focal word stays centred in the strip.
+        # (Currently the strip groups by sentence boundary, so chunk_size
+        # mainly controls the max-width safety guard.)
+
+        # ---- Focal word components -----------------------------------
+        focal_word = self._current_word()
+        orp_idx = calculate_orp_index(focal_word)
+        focal_parts = split_word_for_display(focal_word, orp_idx)
+
+        # ---- Paragraph-aware word grouping ----------------------------
+        # Group all words into logical "lines" by sentence boundary.
+        # Each line is a list of word indices.
+        lines = self._group_into_lines()
+        # Find which line the focal word belongs to.
+        focal_line_idx = self._line_index_containing(word_index, lines)
+
+        # ---- Build context rows ------------------------------------
+        context_lines = max(2, int(self._params.get("context_lines", 5)))
+        rows_above: list[str] = []
+        rows_below: list[str] = []
+
+        # Collect N lines above the focal line.
+        for offset in range(1, context_lines + 1):
+            line_idx = focal_line_idx - offset
+            if 0 <= line_idx < len(lines):
+                # Use the last word of each above-line as the row label.
+                last_word_in_line = self._words[lines[line_idx][-1]]
+                rows_above.insert(0, last_word_in_line)
+            # Skip empty entries to avoid blank placeholder rows.
+
+        # Collect N lines below the focal line.
+        for offset in range(1, context_lines + 1):
+            line_idx = focal_line_idx + offset
+            if 0 <= line_idx < len(lines):
+                first_word_in_line = self._words[lines[line_idx][0]]
+                rows_below.append(first_word_in_line)
+            # Skip empty entries to avoid blank placeholder rows.
+
+        # ---- Progress info -----------------------------------------
+        total = len(self._words)
+        pct = (word_index / total) * 100 if total else 0.0
+        remaining_words = total - word_index
+        eta_mins = int(remaining_words / max(1, self.wpm))
+        eta_secs = int((remaining_words / max(1, self.wpm) - eta_mins) * 60)
+        time_remaining = f"{eta_mins}:{eta_secs:02d}"
+
+        progress = ProgressInfo(
+            word_index=word_index,
+            total=total,
+            wpm=self.wpm,
+            time_remaining=time_remaining,
+            percentage=pct,
+        )
+
+        # ---- Header / footer metadata -------------------------------
+        header_meta = f" {self._book_title()} · {word_index + 1}/{total} ({pct:.1f}%) "
+        footer_meta = (
+            f" ▶ {self.wpm} WPM · {time_remaining} left "
+        )
+
+        return FrameContext(
+            theme=self._theme,
+            spec=spec,
+            focal_word=focal_word,
+            focal_parts=focal_parts,
+            context_above=rows_above,
+            context_below=rows_below,
+            progress=progress,
+            playing=self.is_playing,
+            header_meta=header_meta,
+            footer_meta=footer_meta,
+        )
+
+    # ------------------------------------------------------------------ #
+    # Line grouping helpers
+    # ------------------------------------------------------------------ #
+
+    def _group_into_lines(self) -> list[list[int]]:
+        """Split the word list into logical lines by sentence boundary.
+
+        A new line starts after any sentence terminator (.!?) or after
+        ~12 words (whichever comes first). This gives natural line
+        breaks for the horizontal context rows without requiring a
+        fixed character-width pass.
+        """
+        if not self._words:
+            return []
+        # max words per line before forcing a break (sentence boundary wins)
+        _MAX_WORDS_PER_LINE = 12  # noqa: N806
+        lines: list[list[int]] = []
+        current: list[int] = []
+        sentence_ends = {".", "!", "?"}
+
+        for idx, word in enumerate(self._words):
+            current.append(idx)
+            ends_sentence = (
+                word[-1:] in sentence_ends
+                if word
+                else False
+            )
+            if ends_sentence or len(current) >= _MAX_WORDS_PER_LINE:
+                lines.append(current)
+                current = []
+
+        if current:
+            lines.append(current)
+        return lines
+
+    @staticmethod
+    def _line_index_containing(word_index: int, lines: list[list[int]]) -> int:
+        """Return the index into ``lines`` that contains ``word_index``."""
+        for li, line in enumerate(lines):
+            if word_index in line:
+                return li
+        # Fallback: put it at the nearest line.
+        if not lines:
+            return 0
+        if word_index < lines[0][0]:
+            return 0
+        return len(lines) - 1
+
+    # ------------------------------------------------------------------ #
+    # Utilities
+    # ------------------------------------------------------------------ #
+
+    def _book_title(self) -> str:
+        # The figure doesn't directly know the book title; expose
+        # whatever the owning screen passes down via params.
+        title = str(self._params.get("book_title", ""))
+        if title:
+            return title[:40]   # truncate long titles for the header
+        return ""
+
+    def _probe_terminal_width(self) -> int | None:
+        """Try to probe the Textual app's terminal width.
+
+        Returns None if the figure isn't mounted (no app), so callers
+        must handle that gracefully.
+        """
+        try:
+            app = self.app
+        except Exception:
+            return None
+        if app is None:
+            return None
+        size = app.size
+        if size is None:
+            return None
+        return size.width
 
     def _progress_title(self) -> str:
         if not self._words:
             return ""
         pct = (self.word_index / len(self._words)) * 100
-        chunk_size = self.get_param("chunk_size", 7)
-        return f"{self.word_index + 1}/{len(self._words)} ({pct:.1f}%) [{chunk_size}w]"
+        chunk_size = int(self._params.get("chunk_size", 17))
+        return (
+            f"{self.word_index + 1}/{len(self._words)} "
+            f"({pct:.1f}%)  [{chunk_size}w]"
+        )

@@ -45,10 +45,30 @@ class Theme:
     border_idle: str  # border when widget is idle
     background: str = "default"
     foreground: str = "default"
+    # HorizontalFrame tokens — see figures/frame.py for usage. New
+    # themes should at minimum set ``frame_rule`` and ``frame_pivot``;
+    # ``token()`` falls back to ``frame_rule`` so any missing token
+    # still renders something coherent.
+    frame_rule: str = ""           # horizontal rule color
+    frame_rule_heavy: str = ""    # heavier rule for header/footer lines
+    frame_pivot: str = ""         # vertical pivot-column color
+    frame_corner: str = ""        # corner & cross characters
+    frame_focus: str = ""         # color for the focal word row
 
     def token(self, name: str) -> str:
-        """Return a token by name, falling back to ``muted`` if missing."""
-        return getattr(self, name, self.muted)
+        """Return a token by name with sensible fallbacks.
+
+        Priority: exact field → ``muted`` → ``frame_rule`` → ``"default"``.
+        The frame tokens (``frame_rule`` etc.) intentionally fall back to
+        ``muted`` so an older theme without explicit frame tokens still
+        renders the frame with the established dim palette.
+        """
+        return (
+            getattr(self, name, None)
+            or self.muted
+            or self.frame_rule
+            or "default"
+        )
 
 
 # --- Concrete themes ---------------------------------------------------------
@@ -86,6 +106,14 @@ THEMES: dict[str, Theme] = {
         success="bold green",
         border_active="red",
         border_idle="blue",
+        # HorizontalFrame tokens — heavy/double box-drawing on a dark
+        # terminal wants muted-but-readable colors so the frame
+        # supports the word without competing for attention.
+        frame_rule="grey35",
+        frame_rule_heavy="cyan",
+        frame_pivot="magenta",
+        frame_corner="cyan",
+        frame_focus="bold white",
     ),
     "light": LightTheme(
         id="light",
@@ -100,6 +128,11 @@ THEMES: dict[str, Theme] = {
         success="bold green",
         border_active="red",
         border_idle="blue",
+        frame_rule="grey70",
+        frame_rule_heavy="blue",
+        frame_pivot="purple",
+        frame_corner="blue",
+        frame_focus="bold black",
     ),
     "solarized": SolarizedTheme(
         id="solarized",
@@ -116,6 +149,11 @@ THEMES: dict[str, Theme] = {
         border_idle="#586e75",
         background="default",
         foreground="#fdf6e3",
+        frame_rule="#586e75",       # base01
+        frame_rule_heavy="#268bd2", # blue
+        frame_pivot="#d33682",      # magenta
+        frame_corner="#b58900",     # yellow
+        frame_focus="bold #fdf6e3", # base3, bright
     ),
 }
 
