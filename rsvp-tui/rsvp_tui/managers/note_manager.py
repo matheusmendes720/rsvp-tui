@@ -8,6 +8,7 @@ from pathlib import Path
 
 from ..logging_ import telemetry
 from ..models import Note
+from ..util import atomic_write_text
 
 log = logging.getLogger(__name__)
 
@@ -39,18 +40,33 @@ class NoteManager:
             return []
 
         try:
-            with open(notes_file) as f:
+            # encoding="utf-8" so non-ASCII content survives on Windows
+            # where the default encoding is cp1252 (Windows-1252).
+            with open(notes_file, encoding="utf-8") as f:
                 data = json.load(f)
             return [Note.from_dict(n) for n in data]
-        except (json.JSONDecodeError, KeyError):
+        except (json.JSONDecodeError, KeyError) as exc:
+            # Logged, not silently dropped — losing a user's notes without
+            # a trace is worse than raising. We still return [] so the UI
+            # doesn't crash, but operators can see this in the log file.
+            log.warning(
+                "note_manager: corrupt notes file for book_id=%s: %s",
+                book_id,
+                exc,
+                exc_info=True,
+            )
             return []
 
     def _save_notes_for_book(self, book_id: str, notes: list[Note]) -> None:
         """Save notes for a book."""
         notes_file = self._get_notes_file(book_id)
 
-        with open(notes_file, "w") as f:
-            json.dump([n.to_dict() for n in notes], f, indent=2, default=str)
+        # Atomic write: a crash mid-write would otherwise leave a half-written
+        # JSON file that the next read would refuse to parse and discard.
+        atomic_write_text(
+            notes_file,
+            json.dumps([n.to_dict() for n in notes], indent=2, default=str),
+        )
 
     def create_note(
         self,
@@ -136,14 +152,17 @@ class NoteManager:
 
         output_file = self.notes_dir / f"{book_id}_notes.md"
 
-        with open(output_file, "w") as f:
-            f.write(f"# Notes: {book_title}\n\n")
-            f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n")
-            f.write("---\n\n")
-
-            for note in notes:
-                f.write(note.to_markdown())
-                f.write("\n")
+        # Atomic write with UTF-8 (handled inside atomic_write_text):
+        # non-ASCII titles/content must round-trip on Windows cp1252.
+        parts = [
+            f"# Notes: {book_title}\n\n",
+            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n",
+            "---\n\n",
+        ]
+        for note in notes:
+            parts.append(note.to_markdown())
+            parts.append("\n")
+        atomic_write_text(output_file, "".join(parts))
 
         return output_file
 
