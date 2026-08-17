@@ -119,3 +119,35 @@ class LibraryView(Vertical):
         if self.selected_book_id:
             return self.library_manager.get_book(self.selected_book_id)
         return None
+
+    # ---- Live focus helpers (called by screen-level bindings) ----
+
+    def focus_table(self) -> None:
+        """Move focus to the DataTable so arrow keys navigate rows."""
+        try:
+            self.query_one(DataTable).focus()
+        except Exception:
+            pass
+
+    def move_cursor(self, delta: int) -> None:
+        """Move the table cursor by ``delta`` rows (clamped)."""
+        try:
+            table = self.query_one(DataTable)
+        except Exception:
+            return
+        if table.row_count == 0:
+            return
+        current = table.cursor_row
+        new_row = max(0, min(table.row_count - 1, current + delta))
+        table.move_cursor(row=new_row)
+        # Mirror into our reactive so the screen-level action sees it.
+        row_key = table.coordinate_to_cell_key((new_row, 0)).row_key
+        if row_key is not None:
+            self.selected_book_id = str(row_key.value)
+
+    def focus_search(self) -> None:
+        """Move focus to the search input."""
+        try:
+            self.query_one("#search-input", Input).focus()
+        except Exception:
+            pass

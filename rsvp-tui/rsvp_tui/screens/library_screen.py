@@ -14,6 +14,7 @@ keybindings, search) without re-implementing the table widget.
 from __future__ import annotations
 
 import logging
+import sqlite3
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -44,9 +45,30 @@ class LibraryScreen(RSVPBaseScreen):
     """
 
     BINDINGS = [
-        Binding("ctrl+r", "app.refresh", "Refresh"),
-        Binding("ctrl+s", "app.open_settings", "Settings"),
-        Binding("ctrl+o", "app.open_file_explorer", "Open"),
+        # ---- Ctrl variants (always-on, no focus issues) ----
+        # Action strings MUST be the bare method name (e.g. "refresh");
+        # Textual auto-prefixes ``action_`` during dispatch. Using
+        # ``"action_refresh"`` here would resolve to ``action_action_refresh``
+        # and silently no-op. See tests/test_keybindings.py for the guard.
+        Binding("ctrl+r", "refresh", "Refresh"),
+        Binding("ctrl+s", "open_settings", "Settings"),
+        Binding("ctrl+o", "open_file", "Open"),
+        Binding("ctrl+q", "app.quit", "Quit"),
+        # ---- Single-key variants (work when the table has focus) ----
+        Binding("o", "open_file", "Open"),
+        Binding("s", "open_settings", "Settings"),
+        Binding("r", "refresh", "Refresh"),
+        Binding("?", "show_help", "Help"),
+        Binding("delete,backspace", "delete_selected", "Delete"),
+        Binding("enter", "open_selected", "Read"),
+        # ---- Arrow keys (DataTable handles these natively when focused,
+        # but explicit bindings keep them working when the search input
+        # has focus, via the Input's own handler). We re-bind so the
+        # action shows in the footer. ----
+        Binding("down", "focus_next_book", "Down"),
+        Binding("up", "focus_prev_book", "Up"),
+        Binding("j", "focus_next_book", "Next", show=False),
+        Binding("k", "focus_prev_book", "Prev", show=False),
     ]
 
     def __init__(self, config: Config | None = None) -> None:
@@ -116,8 +138,80 @@ class LibraryScreen(RSVPBaseScreen):
             book = library_manager.import_book(Path(path))
             if book:
                 self.post_message(BookOpened(book_id=book.id))
-        except Exception as e:
+        except (OSError, ValueError) as e:
+            # Narrow on purpose: import_book surfaces FileNotFoundError,
+            # PermissionError, IsADirectoryError (all OSError subclasses)
+            # and ValueError for unsupported file types. KeyboardInterrupt /
+            # MemoryError / SystemExit must still propagate so the user
+            # can Ctrl-C out and OOM crashes aren't masked.
             self.app.notify(f"Error: {e}", severity="error")
+            log.warning(
+                "LibraryScreen: import_book failed for path=%s: %s", path, e
+            )
+
+    def action_show_help(self) -> None:
+        """Show a notification with the keybindings."""
+        help_text = (
+            "[b]Library Hotkeys[/b]\n"
+            "  [b]o[/b] / [b]Ctrl+O[/b]  Import book\n"
+            "  [b]s[/b] / [b]Ctrl+S[/b]  Settings\n"
+            "  [b]r[/b] / [b]Ctrl+R[/b]  Refresh\n"
+            "  [b]Enter[/b]        Open selected\n"
+            "  [b]Delete[/b]       Delete selected\n"
+            "  [b]j/k[/b] or [b]↑/↓[/b] Navigate\n"
+            "  [b]Ctrl+Q[/b]       Quit"
+        )
+        self.app.notify(help_text, timeout=8)
+
+    def action_open_selected(self) -> None:
+        """Open the currently-selected book (Enter key)."""
+        if self._library_view is None:
+            return
+        book = self._library_view.get_selected_book()
+        if book is None:
+            self.app.notify("No book selected")
+            return
+        self.post_message(BookOpened(book_id=book.id))
+
+    def action_delete_selected(self) -> None:
+        """Delete the currently-selected book."""
+        if self._library_view is None:
+            return
+        book = self._library_view.get_selected_book()
+        if book is None:
+            self.app.notify("No book selected")
+            return
+        library_manager = self.app.library_manager  # type: ignore[attr-defined]
+        try:
+            library_manager.delete_book(book.id)
+        except (OSError, ValueError, sqlite3.DatabaseError) as e:
+            # Narrow on purpose: delete_book surfaces sqlite3.DatabaseError
+            # (OperationalError / IntegrityError on a locked/corrupt DB),
+            # OSError on cache_path.unlink() failures (PermissionError,
+            # FileNotFoundError, disk errors), and ValueError for malformed
+            # book ids. KeyboardInterrupt / MemoryError / SystemExit must
+            # still propagate so the user can Ctrl-C out and OOM crashes
+            # aren't masked. Programmer bugs (AttributeError, TypeError,
+            # KeyError) also propagate — they should NOT be silently turned
+            # into a toast that hides real defects. The same narrowing
+            # philosophy as _on_file_selected_path, with sqlite3 added
+            # because delete_book is DB-heavy.
+            self.app.notify(f"Delete failed: {e}", severity="error")
+            return
+        self._library_view.load_books()
+        self.app.notify(f"Deleted {book.title}")
+
+    def action_focus_next_book(self) -> None:
+        """Move DataTable selection down by one row."""
+        if self._library_view is None:
+            return
+        self._library_view.move_cursor(+1)
+
+    def action_focus_prev_book(self) -> None:
+        """Move DataTable selection up by one row."""
+        if self._library_view is None:
+            return
+        self._library_view.move_cursor(-1)
 
 
 __all__ = ["LibraryScreen"]

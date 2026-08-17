@@ -40,10 +40,17 @@ class NotePanel(Vertical):
         self,
         note_manager: NoteManager,
         on_note_added: Callable[[int], Any] | None = None,
+        **kwargs: Any,
     ):
-        super().__init__()
+        super().__init__(**kwargs)
         self.note_manager = note_manager
         self.on_note_added = on_note_added
+        # Per-book cache of parsed notes so watch_current_word_index
+        # (which fires ~5x/s at 300 WPM) does NOT hit disk + JSON parse
+        # on every tick. The cache is populated lazily on a book-id
+        # cache miss (book switch) and explicitly invalidated by
+        # refresh_notes() after an external save.
+        self._notes_cache: dict[str, list[Note]] = {}
 
     def compose(self) -> ComposeResult:
         """Compose the widget."""
@@ -51,20 +58,62 @@ class NotePanel(Vertical):
         yield Button("Add Note", id="add-note-btn", variant="primary")
         yield Static(id="notes-list")
 
+    def _ensure_notes_loaded(self) -> list[Note]:
+        """Return all notes for ``current_book_id``, loading on cache miss.
+
+        ``get_notes_for_book`` performs the disk read + JSON parse +
+        ``Note.from_dict()`` reconstruction; callers that just want
+        "notes near position X" should use ``_filter_for_position``
+        instead to avoid redundant disk I/O.
+        """
+        book_id = self.current_book_id
+        if not book_id:
+            return []
+        cached = self._notes_cache.get(book_id)
+        if cached is None:
+            try:
+                cached = self.note_manager.get_notes_for_book(book_id)
+            except Exception:  # noqa: BLE001 — disk/JSON failure → empty list
+                cached = []
+            self._notes_cache[book_id] = cached
+        return cached
+
+    def _filter_for_position(self) -> list[Note]:
+        """Return notes within ±50 words of current_word_index (no I/O)."""
+        notes = self._ensure_notes_loaded()
+        return [
+            n for n in notes
+            if abs(n.word_index - self.current_word_index) <= 50
+        ]
+
+    def watch_current_book_id(self, new_book_id: str | None) -> None:
+        """React to book change: a new book_id is automatically a cache miss,
+        so ``_ensure_notes_loaded`` reloads; we just re-render."""
+        self.notes = self._filter_for_position()
+        self._update_display()
+
     def watch_current_word_index(self, index: int) -> None:
-        """React to word index changes."""
-        self._load_notes()
+        """React to word index changes.
+
+        Per-tick (5+ Hz at 300 WPM): only refilter the already-cached
+        notes for the current book. No disk read, no JSON parse.
+        """
+        self.notes = self._filter_for_position()
+        self._update_display()
 
     def _load_notes(self) -> None:
-        """Load notes for current position."""
+        """Force a full reload from disk for the current book.
+
+        Use when notes have been added/edited externally and the cache
+        must reflect the new state. Public callers should prefer
+        ``refresh_notes()``; this is a building block.
+        """
         if not self.current_book_id:
             return
-
-        self.notes = self.note_manager.get_notes_for_position(
-            self.current_book_id,
-            self.current_word_index,
-            context_window=50,
-        )
+        # Drop the cached entry for this book so _ensure_notes_loaded
+        # re-reads from disk on the next watcher tick.
+        self._notes_cache.pop(self.current_book_id, None)
+        self.notes = self._filter_for_position()
         self._update_display()
 
     def _update_display(self) -> None:
