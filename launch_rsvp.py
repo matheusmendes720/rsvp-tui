@@ -1,46 +1,16 @@
 #!/usr/bin/env python3
+"""Launcher for the RSVP TUI.
+
+Routes through :func:`rsvp_tui.cli.main` so this script and the
+``rsvp`` / ``rsvp-tui`` console scripts and ``python -m rsvp_tui``
+all land on the SAME entry point. Previously this file did its own
+``sys.path.insert`` and imported ``rsvp_tui.app_complete.RSVPTUI`` —
+that class lived only in the legacy monolithic runtime (now removed)
+and the launcher would silently ImportError against the modular
+``rsvp_tui.app.RSVPApp`` path that the package actually ships.
 """
-Launcher script for RSVP TUI.
-Run this to start the interactive speed reader!
-"""
 
-import sys
-from pathlib import Path
+from rsvp_tui.cli import main
 
-# Add rsvp-tui to path
-sys.path.insert(0, str(Path(__file__).parent / "rsvp-tui"))
-
-try:
-    from rsvp_tui.app_complete import RSVPTUI
-    
-    print("=" * 70)
-    print("🚀 RSVP Speed Reader - Interactive TUI")
-    print("=" * 70)
-    print()
-    print("Features:")
-    print("  📚 Library management with SQLite")
-    print("  📖 RSVP reading with ORP highlighting")
-    print("  📝 Position-linked note-taking")
-    print("  ⚡ Rust backend for performance")
-    print()
-    print("Keyboard shortcuts:")
-    print("  Space = Play/Pause  ←/→ = Skip  ↑/↓ = Speed")
-    print("  n = Add note        o = Toggle ORP  f = Focus mode")
-    print("  l = Library         ? = Help        q = Quit")
-    print()
-    print("Press Ctrl+C to exit at any time")
-    print("=" * 70)
-    print()
-    
-    app = RSVPTUI()
-    app.run()
-    
-except ImportError as e:
-    print(f"❌ Error importing RSVP modules: {e}")
-    print()
-    print("Make sure to install dependencies:")
-    print("  cd rsvp-tui && pip install -e .")
-    sys.exit(1)
-except KeyboardInterrupt:
-    print("\n\n👋 Goodbye!")
-    sys.exit(0)
+if __name__ == "__main__":
+    main()
