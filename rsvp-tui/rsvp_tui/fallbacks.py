@@ -207,7 +207,14 @@ def parse_epub_bytes(data: bytes) -> ParseResult:
     except Exception:
         return ParseResult(title="EPUB Error", author="Unknown", plain_text="", chapters=[], word_count=0)
 
-    return _parse_epub_book(book)
+    # Scope the book reference so it's released (and any underlying
+    # zip file handle freed) whether the parser succeeds or raises.
+    # ebooklib's EpubBook has no explicit ``close()``; dropping the
+    # reference is the best we can do.
+    try:
+        return _parse_epub_book(book)
+    finally:
+        book = None  # type: ignore[assignment]
 
 
 def parse_epub_path(file_path: Path) -> ParseResult:
@@ -222,7 +229,10 @@ def parse_epub_path(file_path: Path) -> ParseResult:
     except Exception:
         return ParseResult(title="EPUB Error", author="Unknown", plain_text="", chapters=[], word_count=0)
 
-    return _parse_epub_book(book)
+    try:
+        return _parse_epub_book(book)
+    finally:
+        book = None  # type: ignore[assignment]
 
 
 def _parse_epub_book(book: Any) -> ParseResult:
@@ -287,12 +297,24 @@ def parse_pdf_bytes(data: bytes) -> ParseResult:
 
     from io import BytesIO
 
+    # Scope the fitz document lifetime so doc.close() always runs,
+    # even when the parser raises — otherwise the underlying file
+    # handle leaks for the life of the process.
     doc = fitz.open(stream=BytesIO(data), filetype="pdf")
-    return _parse_pdf_doc(doc)
+    try:
+        return _parse_pdf_doc(doc)
+    finally:
+        doc.close()
 
 
 def parse_pdf_path(file_path: Path) -> ParseResult:
-    """Parse PDF from file path - faster than bytes."""
+    """Parse PDF from file path - faster than bytes.
+
+    Tries chapter-map-tui's 3-layer TOC cascade (PyMuPDF outline →
+    regex TOC page → font-size heuristic) for real chapter boundaries.
+    Falls back to simple single-chunk parsing if chapter-map-tui is not
+    installed or extraction fails.
+    """
     try:
         import fitz
     except ImportError:
@@ -303,6 +325,97 @@ def parse_pdf_path(file_path: Path) -> ParseResult:
     except Exception:
         return ParseResult(title="PDF Error", author="Unknown", plain_text="", chapters=[], word_count=0)
 
+    try:
+        return _parse_pdf_doc_with_chapters(doc, file_path)
+    finally:
+        doc.close()
+
+
+def _parse_pdf_doc_with_chapters(doc: Any, file_path: Path) -> ParseResult:
+    """Parse PDF with chapter detection via chapter-map-tui cascade."""
+    # Extract metadata
+    title = doc.metadata.get("title", "") or "Unknown"
+    if not title or title == "Unknown":
+        title = file_path.stem
+    author = doc.metadata.get("author", "") or "Unknown"
+
+    # --- Try chapter-map-tui cascade ---
+    try:
+        from chapter_map_tui.parsers.outline import parse_pymupdf_outline
+        from chapter_map_tui.parsers.word_index import build_word_index
+        from chapter_map_tui.parsers.font_size import parse_font_size_heuristic
+
+        # Layer 1: PyMuPDF outline
+        chapter_map = parse_pymupdf_outline(file_path)
+        source = "outline"
+
+        # Layer 2: regex TOC page (only if Layer 1 returned empty or too few chapters)
+        if len(chapter_map.entries) < 2:
+            try:
+                from chapter_map_tui.parsers.regex_toc import parse_toc_page
+
+                toc_chapters = parse_toc_page(file_path)
+                if toc_chapters and len(toc_chapters.entries) >= len(chapter_map.entries):
+                    chapter_map = toc_chapters
+                    source = "toc_page"
+            except Exception:  # noqa: BLE001
+                pass
+
+        # Layer 3: font-size heuristic (only if still sparse)
+        if len(chapter_map.entries) < 2:
+            font_chapters = parse_font_size_heuristic(file_path)
+            if font_chapters and len(font_chapters.entries) >= len(chapter_map.entries):
+                chapter_map = font_chapters
+                source = "font_size"
+
+        # Build word ranges so we know the word index boundaries
+        indexed = build_word_index(file_path, chapter_map)
+
+        # Build plain_text by iterating all pages in order
+        all_text_parts: list[str] = []
+        for page_num in range(doc.page_count):
+            page = doc[page_num]
+            text = page.get_text("text")
+            if text:
+                all_text_parts.append(text.strip())
+            else:
+                all_text_parts.append("")
+        full_text = " ".join(all_text_parts)
+        words = full_text.split()
+
+        # Map chapter entries to Chapter objects using word ranges
+        # Skip zero-width ranges — these come from PyMuPDF outline subsections that
+        # start on the same page as their parent, giving them no distinct content.
+        chapters: list[Chapter] = []
+        for entry in chapter_map.entries:
+            key = entry.raw_label if entry.raw_label else entry.title
+            rng = indexed.ranges.get(key)
+            if rng and rng.end_word_index > rng.start_word_index:
+                chapters.append(
+                    Chapter(
+                        title=entry.title,
+                        start_word_index=rng.start_word_index,
+                        end_word_index=rng.end_word_index,
+                    )
+                )
+
+        if chapters:
+            return ParseResult(
+                title=title,
+                author=author,
+                plain_text=" ".join(words),
+                chapters=chapters,
+                word_count=len(words),
+            )
+
+    except ImportError:
+        # chapter-map-tui not installed — fall through to simple parser
+        pass
+    except Exception:  # noqa: BLE001
+        # Any other error — fall through to simple parser
+        pass
+
+    # --- Fallback: simple single-chunk parsing ---
     return _parse_pdf_doc(doc)
 
 
