@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     from ..figures.registry import FigureRegistry
 
 from ..figures import default_registry
-from ..keybindings import resolve
 from ..models import Config
 
 log = logging.getLogger(__name__)
@@ -73,10 +72,6 @@ class RSVPBaseScreen(Screen[Any]):
         if self._config is None:
             self._config = Config.load()
         return self._config
-
-    def resolve_key(self, action: str) -> str:
-        """Resolve a key for ``action`` honoring the user's overrides."""
-        return resolve(action, self.config.keybindings)
 
     def figure_registry(self) -> FigureRegistry:
         """The figure registry used by this screen."""
