@@ -53,7 +53,7 @@ jobs:
             tar -cJf ../../../${{ matrix.archive }} "$BIN"
           fi
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.archive }}
           path: rsvp-cli/${{ matrix.archive }}
