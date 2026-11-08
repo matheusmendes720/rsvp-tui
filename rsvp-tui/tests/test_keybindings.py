@@ -17,15 +17,28 @@ For each binding we walk the MRO of the appropriate target class and
 check the action method exists. We deliberately do not instantiate
 the screens — many require config / DB / TUI runtime; we only need
 the class objects.
+
+The file ALSO keeps the coverage for the centralized keymap module
+(``rsvp_tui.keybindings``): ``DEFAULT_BINDINGS`` /
+``BINDING_DESCRIPTIONS`` are consumed by the man-page generator
+(``scripts/_man_template.py``), and ``resolve()`` /
+``merged_bindings()`` are the public API for user overrides. They must
+stay tested — the orphan-binding guard above does not cover them.
 """
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 import pytest
 
 from rsvp_tui.app import RSVPApp
+from rsvp_tui.keybindings import (
+    BINDING_DESCRIPTIONS,
+    DEFAULT_BINDINGS,
+    merged_bindings,
+    resolve,
+)
 from rsvp_tui.screens.base import RSVPBaseScreen
 from rsvp_tui.screens.command_palette import CommandPaletteScreen
 from rsvp_tui.screens.figure_picker import FigurePickerScreen
@@ -33,7 +46,6 @@ from rsvp_tui.screens.file_explorer import FileExplorerScreen
 from rsvp_tui.screens.library_screen import LibraryScreen
 from rsvp_tui.screens.reader_screen import ReaderScreen
 from rsvp_tui.screens.settings_screen import SettingsScreen
-
 
 # Each entry: (class, expected-target-class for the binding lookup).
 # Default target is the class itself (for screen-local actions).
@@ -67,15 +79,10 @@ def _iter_bindings(bindings_obj: object) -> Iterable[tuple[str, str]]:
 def _has_action(cls: type, action: str) -> bool:
     """Return True if ``cls`` (or any base) defines ``action_<action>``."""
     method_name = f"action_{action}"
-    for klass in cls.__mro__:
-        if method_name in klass.__dict__:
-            return True
-    return False
+    return any(method_name in klass.__dict__ for klass in cls.__mro__)
 
 
-def _collect_mismatches(
-    cls: type, target: type
-) -> list[tuple[str, str, str]]:
+def _collect_mismatches(cls: type, target: type) -> list[tuple[str, str, str]]:
     """Return [(key, action, reason), ...] for every orphan binding."""
     problems: list[tuple[str, str, str]] = []
     for key, action in _iter_bindings(getattr(cls, "BINDINGS", None)):
@@ -83,16 +90,12 @@ def _collect_mismatches(
             problems.append((key, action, "empty action name"))
             continue
         if action.startswith("app."):
-            sub = action[len("app."):]
+            sub = action[len("app.") :]
             if not _has_action(target, sub):
-                problems.append(
-                    (key, action, f"{target.__name__}.action_{sub} not found")
-                )
+                problems.append((key, action, f"{target.__name__}.action_{sub} not found"))
         else:
             if not _has_action(cls, action):
-                problems.append(
-                    (key, action, f"{cls.__name__}.action_{action} not found")
-                )
+                problems.append((key, action, f"{cls.__name__}.action_{action} not found"))
     return problems
 
 
@@ -101,9 +104,7 @@ def _collect_mismatches(
     SCREENS_WITH_APP_ACTIONS,
     ids=lambda c: c.__name__,
 )
-def test_all_bindings_resolve_to_real_handlers(
-    cls: type, target: type
-) -> None:
+def test_all_bindings_resolve_to_real_handlers(cls: type, target: type) -> None:
     """Every binding on every screen must point at a real action_*
     method on the appropriate target class (App for app.*, self for
     local)."""
@@ -111,10 +112,7 @@ def test_all_bindings_resolve_to_real_handlers(
     assert not mismatches, (
         f"{cls.__name__} has orphan bindings — they would silently "
         f"no-op at runtime:\n"
-        + "\n".join(
-            f"  key={k!r} action={a!r}  →  {reason}"
-            for k, a, reason in mismatches
-        )
+        + "\n".join(f"  key={k!r} action={a!r}  →  {reason}" for k, a, reason in mismatches)
     )
 
 
@@ -124,9 +122,7 @@ def test_reader_screen_bindings_summary() -> None:
     If a future refactor accidentally drops one of these, this test
     flags it immediately.
     """
-    actions = {
-        a for _, a in _iter_bindings(getattr(ReaderScreen, "BINDINGS", None))
-    }
+    actions = {a for _, a in _iter_bindings(getattr(ReaderScreen, "BINDINGS", None))}
     expected = {
         "app.toggle_play",
         "app.next_figure",
@@ -143,3 +139,47 @@ def test_reader_screen_bindings_summary() -> None:
     }
     missing = expected - actions
     assert not missing, f"ReaderScreen is missing core bindings: {sorted(missing)}"
+
+
+# ---- Centralized keymap module (rsvp_tui.keybindings) ----------------------
+
+
+def test_defaults_match_legacy_bindings() -> None:
+    """The default bindings keep the legacy 0.1.x muscle memory."""
+    assert DEFAULT_BINDINGS["toggle_play"] == "space"
+    assert DEFAULT_BINDINGS["next_figure"] == "n"
+    assert DEFAULT_BINDINGS["prev_figure"] == "shift+n"
+    assert DEFAULT_BINDINGS["show_library"] == "l"
+    assert DEFAULT_BINDINGS["show_settings"] == "s"
+    assert DEFAULT_BINDINGS["quit"] == "q"
+
+
+def test_resolve_returns_default() -> None:
+    assert resolve("toggle_play") == "space"
+
+
+def test_resolve_honors_user_override() -> None:
+    overrides = {"toggle_play": "p"}
+    assert resolve("toggle_play", overrides) == "p"
+    # Non-overridden action still returns default
+    assert resolve("quit", overrides) == "q"
+
+
+def test_resolve_unknown_action_returns_empty_string() -> None:
+    assert resolve("does_not_exist") == ""
+
+
+def test_merged_bindings_overrides_apply() -> None:
+    overrides = {"toggle_play": "p", "next_figure": "."}
+    merged = merged_bindings(overrides)
+    assert merged["toggle_play"] == "p"
+    assert merged["next_figure"] == "."
+    # Other actions unchanged
+    assert merged["quit"] == "q"
+
+
+def test_descriptions_cover_defaults() -> None:
+    """Every default action has a human-readable description."""
+    for action in DEFAULT_BINDINGS:
+        assert action in BINDING_DESCRIPTIONS, f"missing description for {action}"
+        assert BINDING_DESCRIPTIONS[action], f"empty description for {action}"
