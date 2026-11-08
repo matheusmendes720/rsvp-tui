@@ -11,6 +11,7 @@ from typing import Any
 from .. import parse_epub_path, parse_markdown, parse_pdf_path, parse_plain_text, tokenize_text
 from ..logging_ import telemetry
 from ..models import Book, Chapter, FileType
+from ..util import atomic_write_text
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class LibraryManager:
 
     def _init_db(self) -> None:
         """Initialize database schema."""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, check_same_thread=False) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS books (
                     id TEXT PRIMARY KEY,
@@ -132,11 +133,18 @@ class LibraryManager:
             added_date=datetime.now(),
         )
 
-        # Cache tokenized words
+        # Cache tokenized words (atomic: a crash mid-write won't leave a
+        # corrupt cache that later loads will refuse to parse). The on-disk
+        # shape is a dict envelope {"words": [...]} so the reader screen's
+        # `words_data.get("words", [])` loader works without crashing, and
+        # so we can extend the envelope later (e.g. metadata, version)
+        # without a second migration.
         words = tokenize_text(result.plain_text)
         cache_path = self.cache_dir / f"{book_id}.json"
-        with open(cache_path, "w") as f:
-            json.dump(words, f)
+        atomic_write_text(
+            cache_path,
+            json.dumps({"words": words}, ensure_ascii=False),
+        )
         book.cache_file_path = cache_path
 
         # Save to database
@@ -160,7 +168,7 @@ class LibraryManager:
 
     def _save_book_to_db(self, book: Book) -> None:
         """Save book to database."""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, check_same_thread=False) as conn:
             # Save book
             conn.execute(
                 """
@@ -208,7 +216,7 @@ class LibraryManager:
 
     def list_books(self, search: str | None = None) -> list[Book]:
         """List all books in library."""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, check_same_thread=False) as conn:
             conn.row_factory = sqlite3.Row
 
             if search:
@@ -231,7 +239,7 @@ class LibraryManager:
 
     def get_book(self, book_id: str) -> Book | None:
         """Get book by ID."""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, check_same_thread=False) as conn:
             conn.row_factory = sqlite3.Row
 
             row = conn.execute("SELECT data FROM books WHERE id = ?", (book_id,)).fetchone()
@@ -244,7 +252,7 @@ class LibraryManager:
 
     def update_progress(self, book_id: str, word_index: int) -> None:
         """Update reading progress."""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, check_same_thread=False) as conn:
             book = self.get_book(book_id)
             if book:
                 book.update_progress(word_index)
@@ -274,7 +282,7 @@ class LibraryManager:
 
     def delete_book(self, book_id: str) -> None:
         """Remove book from library."""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, check_same_thread=False) as conn:
             # Get cache file path before deletion
             row = conn.execute(
                 "SELECT cache_file_path FROM books WHERE id = ?", (book_id,)
@@ -293,15 +301,25 @@ class LibraryManager:
         log.info("book.delete: book_id=%s", book_id)
 
     def load_words(self, book_id: str) -> list[str]:
-        """Load cached words for a book."""
+        """Load cached words for a book.
+
+        Tolerant of both the current dict-envelope shape
+        (``{"words": [...]}``) and the legacy bare-list shape so existing
+        on-disk caches from older builds keep working.
+        """
         book = self.get_book(book_id)
         if not book or not book.cache_file_path:
             log.warning("load_words: cache miss for book_id=%s", book_id)
             return []
 
         try:
-            with open(book.cache_file_path) as f:
-                words: list[str] = json.load(f)
+            with open(book.cache_file_path, encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                words: list[str] = list(data.get("words", []))
+            else:
+                # Legacy bare-list cache from older builds.
+                words = list(data)
             log.debug("load_words: book_id=%s count=%d", book_id, len(words))
             return words
         except (FileNotFoundError, json.JSONDecodeError) as exc:
@@ -315,7 +333,7 @@ class LibraryManager:
 
     def get_statistics(self) -> dict[str, Any]:
         """Get library statistics."""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, check_same_thread=False) as conn:
             total_books = conn.execute("SELECT COUNT(*) FROM books").fetchone()[0]
             total_words = conn.execute("SELECT SUM(word_count) FROM books").fetchone()[0] or 0
 

@@ -57,6 +57,12 @@ all = [
     "ebooklib>=0.18.0",     # EPUB support fallback
     "markdown>=3.5.0",      # Markdown processing fallback
 ]
+# NOTE: the PDF chapter cascade (``chapter_map_tui``) is an OPTIONAL
+# dependency that is NOT published on PyPI, so it cannot be declared as
+# an extra here — ``uv lock`` would fail to resolve it and take the
+# whole build down with it. It is imported lazily and guarded; when it
+# is missing the reader logs ONE warning explaining that every PDF
+# falls back to the single-chunk parser (no chapters).
 
 [project.scripts]
 rsvp = "rsvp_tui.cli:main"

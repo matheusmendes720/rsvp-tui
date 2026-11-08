@@ -1,15 +1,29 @@
 """Data models for RSVP TUI."""
 
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
-# v3 schema marker. Kept as a module constant so tests and the
+# v4 schema marker. Kept as a module constant so tests and the
 # ConfigManager can import it without a circular dependency on
 # managers.config_manager.
-CURRENT_SCHEMA_VERSION = 3
+CURRENT_SCHEMA_VERSION = 4
+
+
+def rsvp_home() -> Path:
+    """Return the RSVP data directory.
+
+    Honors the ``RSVP_HOME`` environment variable so tests and CI can
+    sandbox their data without touching the user's real ``~/.rsvp``.
+    Falls back to ``~/.rsvp`` when the env var is unset or empty.
+    """
+    override = os.environ.get("RSVP_HOME", "").strip()
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".rsvp"
 
 
 class FileType(str, Enum):
@@ -302,12 +316,32 @@ class Config:
     auto_advance: bool = True  # auto-advance to next word/chunk
     advance_trigger: str = "time"  # time, manual, hybrid
 
+    # --- v3.2 fields (live density / sizing controls) ---
+
+    # Font / word size scale (1=normal … 5=huge). Mapped to the
+    # figure's ``font_size_scale`` param so the Reader can grow/shrink
+    # the reading window with the +/- keys: a terminal can't change the
+    # glyph size, so a "bigger font" is a narrower reading window.
+    font_size_scale: int = 2  # 1-5
+
+    # Lines of context above/below the focal word in the WordFigure.
+    # 0 means "auto": the figure follows its own ``frame_style``
+    # preset (1 row for "wide", 3 for "expanded"). Any other value
+    # overrides the preset — that is what the { and } hotkeys write.
+    context_words_above: int = 0
+    context_words_below: int = 0
+
+    # Words-per-line for horizontal displays. 5 is roughly one human
+    # eye-saccade span. Seeded into the ``chunk_size`` param of the
+    # multi-word figures (horizontal, chunk).
+    words_per_line: int = 5
+
     # --- Storage paths ---
 
-    library_db_path: Path = field(default_factory=lambda: Path.home() / ".rsvp" / "library.db")
-    notes_dir: Path = field(default_factory=lambda: Path.home() / ".rsvp" / "notes")
-    cache_dir: Path = field(default_factory=lambda: Path.home() / ".rsvp" / "cache")
-    config_path: Path = field(default_factory=lambda: Path.home() / ".rsvp" / "config.json")
+    library_db_path: Path = field(default_factory=lambda: rsvp_home() / "library.db")
+    notes_dir: Path = field(default_factory=lambda: rsvp_home() / "notes")
+    cache_dir: Path = field(default_factory=lambda: rsvp_home() / "cache")
+    config_path: Path = field(default_factory=lambda: rsvp_home() / "config.json")
 
     def __post_init__(self) -> None:
         """Clamp ``default_wpm`` to the configured range.

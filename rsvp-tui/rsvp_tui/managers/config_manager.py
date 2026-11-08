@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 
 # Bump CURRENT_SCHEMA when adding new fields. Add a migration entry in
 # MIGRATIONS for every old version that should still be readable.
-CURRENT_SCHEMA: int = 3
+CURRENT_SCHEMA: int = 4
 
 
 # ---- Migrations -------------------------------------------------------------
@@ -70,10 +70,34 @@ def _migrate_2_to_3(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+def _migrate_3_to_4(data: dict[str, Any]) -> dict[str, Any]:
+    """v3 -> v4: add live density / sizing controls.
+
+    New fields:
+    * font_size_scale — 1..5 (the reading-window scale)
+    * context_words_above — lines of context shown above the focal word
+      (0 = auto: follow the figure's frame_style preset)
+    * context_words_below — lines of context shown below the focal word
+      (0 = auto: follow the figure's frame_style preset)
+    * words_per_line — width of horizontal displays
+
+    Older versions stay on their existing values; users opt in by
+    bumping these in the reader live controls or settings.
+    """
+    data = dict(data)  # don't mutate the caller's dict
+    data["schema_version"] = 4
+    data.setdefault("font_size_scale", 2)
+    data.setdefault("context_words_above", 0)
+    data.setdefault("context_words_below", 0)
+    data.setdefault("words_per_line", 5)
+    return data
+
+
 # Map of old version -> migration function. Keys are the *old* version.
 MIGRATIONS: dict[int, Any] = {
     1: _migrate_1_to_2,
     2: _migrate_2_to_3,
+    3: _migrate_3_to_4,
 }
 
 
@@ -90,7 +114,9 @@ class ConfigManager:
 
     def __init__(self, config_path: Path | None = None) -> None:
         if config_path is None:
-            config_path = Path.home() / ".rsvp" / "config.json"
+            from ..models import rsvp_home
+
+            config_path = rsvp_home() / "config.json"
         self.path: Path = config_path
 
     # ---- Loading --------------------------------------------------------
@@ -153,6 +179,24 @@ class ConfigManager:
                 figure_id=data.get("figure_id", "word"),
                 figure_params=dict(data.get("figure_params", {})),
                 keybindings=dict(data.get("keybindings", {})),
+                # v3 fields
+                page_size=data.get("page_size", 500),
+                show_navigation_panel=data.get("show_navigation_panel", True),
+                show_note_panel=data.get("show_note_panel", True),
+                # v3.1 fields
+                display_mode=data.get("display_mode", "word"),
+                chunk_size=data.get("chunk_size", 7),
+                text_alignment=data.get("text_alignment", "center"),
+                highlight_style=data.get("highlight_style", "focal"),
+                highlight_color=data.get("highlight_color", "red"),
+                peripheral_opacity=data.get("peripheral_opacity", 100),
+                auto_advance=data.get("auto_advance", True),
+                advance_trigger=data.get("advance_trigger", "time"),
+                # v3.2 fields (live density / sizing)
+                font_size_scale=data.get("font_size_scale", 2),
+                context_words_above=data.get("context_words_above", 0),
+                context_words_below=data.get("context_words_below", 0),
+                words_per_line=data.get("words_per_line", 5),
                 config_path=self.path,
             )
         except (TypeError, ValueError) as exc:
@@ -232,6 +276,24 @@ class ConfigManager:
             "figure_id": cfg.figure_id,
             "figure_params": dict(cfg.figure_params),
             "keybindings": dict(cfg.keybindings),
+            # v3 fields
+            "page_size": cfg.page_size,
+            "show_navigation_panel": cfg.show_navigation_panel,
+            "show_note_panel": cfg.show_note_panel,
+            # v3.1 fields
+            "display_mode": cfg.display_mode,
+            "chunk_size": cfg.chunk_size,
+            "text_alignment": cfg.text_alignment,
+            "highlight_style": cfg.highlight_style,
+            "highlight_color": cfg.highlight_color,
+            "peripheral_opacity": cfg.peripheral_opacity,
+            "auto_advance": cfg.auto_advance,
+            "advance_trigger": cfg.advance_trigger,
+            # v3.2 fields (live density / sizing)
+            "font_size_scale": cfg.font_size_scale,
+            "context_words_above": cfg.context_words_above,
+            "context_words_below": cfg.context_words_below,
+            "words_per_line": cfg.words_per_line,
         }
 
 

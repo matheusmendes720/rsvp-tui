@@ -166,7 +166,17 @@ def test_palette_screen_defaults_to_default_commands() -> None:
 
 def test_default_registry_id_order_is_stable() -> None:
     """The registry order is documented; don't accidentally reorder."""
-    expected = ["word", "chunk", "line", "bionic", "spritz", "pacer", "minimap", "stats"]
+    expected = [
+        "word",
+        "chunk",
+        "horizontal",
+        "line",
+        "bionic",
+        "spritz",
+        "pacer",
+        "minimap",
+        "stats",
+    ]
     assert default_registry().ids() == expected
 
 
@@ -223,4 +233,89 @@ def test_messages_module_importable() -> None:
         FigureChanged,
         FigureCompleted,
         FigureStateAdvanced,
+    )
+
+
+# ---- NotePanel id forwarding (regression) -----------------------------------
+
+
+def test_note_panel_accepts_id_kwarg() -> None:
+    """NotePanel.__init__ forwards ``id`` to its parent so the screen
+    can ``query_one('#note-panel', NotePanel)`` during ``on_mount``.
+
+    Regression: this used to raise ``TypeError: unexpected keyword
+    argument 'id'`` because ``NotePanel.__init__`` did not accept
+    ``**kwargs``. As a knock-on, ``ReaderScreen.on_mount`` raised
+    ``NoMatches`` because the widget never received the id.
+    """
+    from rsvp_tui.widgets.note_panel import NotePanel
+
+    # A dummy NoteManager — __init__ does not call into it.
+    panel = NotePanel(note_manager=None, id="note-panel")  # type: ignore[arg-type]
+    assert panel.id == "note-panel"
+
+
+def test_note_panel_accepts_classes_kwarg() -> None:
+    """NotePanel.__init__ forwards arbitrary kwargs (not just ``id``).
+
+    Catches regressions where ``**kwargs`` is removed from
+    ``NotePanel.__init__`` — this would silently break every caller
+    that supplies ``id=`` or ``classes=``.
+    """
+    from rsvp_tui.widgets.note_panel import NotePanel
+
+    panel = NotePanel(
+        note_manager=None,  # type: ignore[arg-type]
+        id="note-panel",
+        classes="hidden",
+    )
+    assert panel.id == "note-panel"
+    assert "hidden" in panel.classes
+
+
+def test_reader_screen_compose_passes_id_to_note_panel() -> None:
+    """ReaderScreen.compose yields a NotePanel with id 'note-panel'.
+
+    Regression: the panel used to mount without an id, so
+    ``on_mount`` then tried to ``query_one('#note-panel', NotePanel)``
+    and raised ``NoMatches``.
+
+    This is a static check of the compose method's source — the full
+    Textual app lifecycle is exercised by the e2e suite under
+    ``tests/e2e/``.
+    """
+    import inspect
+    import re
+
+    from rsvp_tui.screens import reader_screen
+
+    source = inspect.getsource(reader_screen.ReaderScreen.compose)
+    match = re.search(r"yield NotePanel\((.*?)\)", source, re.DOTALL)
+    assert match, "ReaderScreen.compose no longer yields a NotePanel"
+    block = match.group(1)
+    assert 'id="note-panel"' in block, (
+        "ReaderScreen.compose yield NotePanel(...) block must include "
+        f'id="note-panel" so on_mount can resolve it; got:\n{block}'
+    )
+
+
+def test_reader_screen_on_mount_queries_note_panel() -> None:
+    """ReaderScreen.on_mount calls ``query_one('#note-panel', NotePanel)``.
+
+    Regression: this used to raise ``NoMatches`` because the NotePanel
+    in compose was missing ``id="note-panel"``. The two conditions
+    (compose passes id AND on_mount queries by id) must both hold —
+    this test pins the on_mount side.
+    """
+    import inspect
+
+    from rsvp_tui.screens import reader_screen
+    from rsvp_tui.widgets.note_panel import NotePanel
+
+    source = inspect.getsource(reader_screen.ReaderScreen.on_mount)
+    assert 'query_one("#note-panel"' in source, (
+        "ReaderScreen.on_mount must call query_one(\"#note-panel\", NotePanel)"
+    )
+    assert NotePanel.__name__ in source, (
+        "ReaderScreen.on_mount must specify NotePanel as the widget class"
     )

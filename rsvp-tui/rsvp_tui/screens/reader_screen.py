@@ -16,6 +16,7 @@ figure is mounted inside a ``Static(id="figure-host")`` container.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -106,6 +107,17 @@ class ReaderScreen(RSVPBaseScreen):
         Binding("[", "app.prev_chapter", "Prev Ch"),
         Binding("]", "app.next_chapter", "Next Ch"),
         Binding("ctrl+n", "app.toggle_navigation", "Nav"),
+        # ---- Live density / sizing controls (v3.2) -----------------------
+        Binding("plus", "app.increase_font", "Size+"),
+        Binding("minus", "app.decrease_font", "Size-"),
+        Binding("ctrl+plus", "app.increase_font_big", "Size++"),
+        Binding("ctrl+minus", "app.decrease_font_big", "Size--"),
+        Binding("left_brace", "app.context_up", "Ctx+"),
+        Binding("right_brace", "app.context_down", "Ctx-"),
+        Binding("shift+left_brace", "app.words_per_line_down", "WPL-"),
+        Binding("shift+right_brace", "app.words_per_line_up", "WPL+"),
+        # ---- Help ----
+        Binding("?", "app.show_reader_help", "Help"),
     ]
 
     focus_mode: reactive[bool] = reactive(False)
@@ -142,6 +154,7 @@ class ReaderScreen(RSVPBaseScreen):
             yield NotePanel(
                 self.app.note_manager,  # type: ignore[attr-defined]
                 on_note_added=self._on_note_added,
+                id="note-panel",
             )
             # Navigation panel (shown based on config)
             if self.config.show_navigation_panel:
@@ -223,7 +236,16 @@ class ReaderScreen(RSVPBaseScreen):
 
         host = self.query_one("#figure-host", Static)
         # Apply per-figure params from config (if any).
-        params = self.config.figure_params.get(fig_id) or {}
+        params = dict(self.config.figure_params.get(fig_id) or {})
+        # Seed the global density preferences into the figure. A
+        # per-figure param (already in ``params``) always wins: the
+        # figure-local setting is the more specific one.
+        for key in ("font_size_scale", "context_words_above", "context_words_below"):
+            params.setdefault(key, getattr(self.config, key))
+        # ``words_per_line`` is the global strip width; the multi-word
+        # figures call the same knob ``chunk_size``.
+        if "chunk_size" in new_fig.default_params:
+            params.setdefault("chunk_size", self.config.words_per_line)
         state = FigureState(
             words=self._words,
             word_index=self._index,
@@ -464,7 +486,13 @@ class ReaderScreen(RSVPBaseScreen):
                     import json
 
                     words_data = json.loads(cache_dir.read_text(encoding="utf-8"))
-                    words = words_data.get("words", [])
+                    # Tolerant of both the dict-envelope shape (current)
+                    # and the bare-list shape (legacy) so existing on-disk
+                    # caches from older builds keep working.
+                    if isinstance(words_data, dict):
+                        words = words_data.get("words", [])
+                    else:
+                        words = words_data
                 else:
                     words = []
                 # Pop current reader and push new one
@@ -584,22 +612,21 @@ class ReaderScreen(RSVPBaseScreen):
         elif command_id.startswith("chunk_"):
             try:
                 size = int(command_id.split("_")[1])
-                old_size = self._current_figure.get_param("chunk_size", 7)
-                self._set_figure_param("chunk_size", size)
+                self._set_active_param("chunk_size", size)
                 self.app.notify(f"Chunk size set to {size} words")
                 telemetry.keybinding_chunk_increase(new_size=size, source="palette")
             except (ValueError, IndexError):
                 pass
         elif command_id == "toggle_bionic":
-            current = self._current_figure.get_param("bionic_enabled", False)
+            current = self._get_active_param("bionic_enabled", False)
             new_value = not current
-            self._set_figure_param("bionic_enabled", new_value)
+            self._set_active_param("bionic_enabled", new_value)
             self.app.notify(f"Bionic style: {'on' if new_value else 'off'}")
             telemetry.keybinding_highlight_cycle(new_style="bionic" if new_value else "focal", source="palette")
         elif command_id == "toggle_fade":
-            current = self._current_figure.get_param("fade_peripheral", True)
+            current = self._get_active_param("fade_peripheral", True)
             new_value = not current
-            self._set_figure_param("fade_peripheral", new_value)
+            self._set_active_param("fade_peripheral", new_value)
             self.app.notify(f"Peripheral fade: {'on' if new_value else 'off'}")
             telemetry.keybinding_fade_toggle(enabled=new_value, source="palette")
 
@@ -651,9 +678,134 @@ class ReaderScreen(RSVPBaseScreen):
         self.config.default_wpm = wpm
         if self._figure is not None:
             self._figure.set_wpm(wpm)
-            if self._progress is not None:
-                self._progress.set_wpm(wpm)
-        self.app.notify(f"WPM set to {wpm}")
+
+    def _get_active_param(self, key: str, default: Any = None) -> Any:
+        if self._figure is None:
+            return default
+        return self._figure.get_param(key, default)
+
+    def _set_active_param(self, key: str, value: Any, notify: bool = True) -> None:
+        if self._figure is None:
+            return
+        self._figure.set_param(key, value)
+        fig_id = self.current_figure_id
+        self.config.figure_params.setdefault(fig_id, {})[key] = value
+        if notify:
+            self.app.notify(f"Param {key!r} set to {value!r}")
+
+    # ---- Live density / sizing controls (v3.2) ---------------------
+
+    def action_increase_font(self, step: int = 1) -> None:
+        """Bump ``font_size_scale`` by ``step`` (1-5), persist, redraw."""
+        cur = self.config.font_size_scale
+        new_value = min(5, max(1, cur + step))
+        if new_value == cur:
+            self.app.notify(f"Font size already at max ({cur})")
+            return
+        self.config.font_size_scale = new_value
+        self.config.save()
+        self._set_active_param("font_size_scale", new_value, notify=False)
+        self.app.notify(f"Font size → {new_value}")
+
+    def action_decrease_font(self, step: int = 1) -> None:
+        """Lower ``font_size_scale`` by ``step`` (1-5)."""
+        cur = self.config.font_size_scale
+        new_value = min(5, max(1, cur - step))
+        if new_value == cur:
+            self.app.notify(f"Font size already at min ({cur})")
+            return
+        self.config.font_size_scale = new_value
+        self.config.save()
+        self._set_active_param("font_size_scale", new_value, notify=False)
+        self.app.notify(f"Font size → {new_value}")
+
+    def _current_context_rows(self) -> tuple[int, int]:
+        """The context rows the active figure is currently rendering.
+
+        The figure owns that number (it knows its ``frame_style``
+        preset), so the hotkeys step from wherever it actually is
+        instead of from a hard-coded default.
+        """
+        getter = getattr(self._figure, "effective_context_rows", None)
+        if callable(getter):
+            try:
+                above, below = getter()
+            except Exception:
+                above = below = 0
+            if above or below:
+                return above, below
+        return (
+            self.config.context_words_above or 1,
+            self.config.context_words_below or 1,
+        )
+
+    def action_context_up(self) -> None:
+        """Add one line of context above+bellow the focal word."""
+        cur_above, _ = self._current_context_rows()
+        new_value = min(8, cur_above + 1)
+        self.config.context_words_above = new_value
+        self.config.context_words_below = new_value
+        self.config.save()
+        self._set_active_param("context_words_above", new_value, notify=False)
+        self._set_active_param("context_words_below", new_value, notify=False)
+        # ``context_window`` drives the unframed ("minimal") figure.
+        self._set_active_param("context_window", new_value, notify=False)
+        self.app.notify(f"Context lines → {new_value}")
+
+    def action_context_down(self) -> None:
+        """Remove one line of context above+bellow."""
+        cur_above, _ = self._current_context_rows()
+        new_value = max(0, cur_above - 1)
+        self.config.context_words_above = new_value
+        self.config.context_words_below = new_value
+        self.config.save()
+        self._set_active_param("context_words_above", new_value, notify=False)
+        self._set_active_param("context_words_below", new_value, notify=False)
+        self._set_active_param("context_window", new_value, notify=False)
+        self.app.notify(f"Context lines → {new_value}")
+
+    def action_words_per_line(self, delta: int = 0) -> None:
+        """Adjust ``words_per_line`` (1..15) and persist.
+
+        ``words_per_line`` is the global strip width. The multi-word
+        figures (horizontal, chunk) expose the same knob as
+        ``chunk_size`` — that is the one that decides how many words
+        the strip shows — so we push the value there.
+        """
+        cur = self.config.words_per_line
+        new_value = min(15, max(1, cur + delta))
+        if new_value == cur:
+            return
+        self.config.words_per_line = new_value
+        self.config.save()
+        if self._figure is not None:
+            param = (
+                "chunk_size"
+                if "chunk_size" in self._figure.default_params
+                else "words_per_line"
+            )
+            self._set_active_param(param, new_value, notify=False)
+        self.app.notify(f"Words/line → {new_value}")
+
+    def action_show_reader_help(self) -> None:
+        """Show the reader-mode keybindings."""
+        help_text = (
+            "[b]Reader Hotkeys[/b]\n"
+            "  [b]Space[/b]         Play/Pause\n"
+            "  [b]←/→[/b]           Prev/Next word\n"
+            "  [b]↑/↓[/b]           Faster/Slower\n"
+            "  [b]Home/End[/b]      Start/End\n"
+            "  [b]F[/b]             Focus mode\n"
+            "  [b]+/-[/b]           Font size\n"
+            "  [b]Ctrl++/-[/b]      Font size (large step)\n"
+            "  [b]{[/b] / [b]}[/b]    More / less context\n"
+            "  [b]Shift+{/}[/b]     Words/line ±\n"
+            "  [b]1..8[/b]          Switch figure\n"
+            "  [b]N[/b]             Next figure\n"
+            "  [b]Ctrl+G[/b]        Picker\n"
+            "  [b]Ctrl+P[/b]        Palette"
+        )
+        self.app.notify(help_text, timeout=10)
 
     def _set_theme(self, theme: str) -> None:
         """Update theme in config (refresh picks it up on next push)."""

@@ -392,6 +392,71 @@ class RSVPApp(App[Any]):
         if isinstance(self.screen, ReaderScreen):
             self.screen.action_toggle_navigation()
 
+    # ---- Live density / sizing controls (v3.2) -----------------------
+
+    def action_increase_font(self) -> None:
+        """Increase font size step (+)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_increase_font()
+
+    def action_decrease_font(self) -> None:
+        """Decrease font size step (-)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_decrease_font()
+
+    def action_increase_font_big(self) -> None:
+        """Increase font size by 2 (Ctrl++)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_increase_font(step=2)
+
+    def action_decrease_font_big(self) -> None:
+        """Decrease font size by 2 (Ctrl+-)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_decrease_font(step=2)
+
+    def action_context_up(self) -> None:
+        """Add a context line above+bellow the focal word ({)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_context_up()
+
+    def action_context_down(self) -> None:
+        """Remove a context line (})."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_context_down()
+
+    def action_words_per_line_up(self) -> None:
+        """Add a word per line for horizontal displays (})."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_words_per_line(delta=+1)
+
+    def action_words_per_line_down(self) -> None:
+        """Remove a word per line."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_words_per_line(delta=-1)
+
+    def action_show_reader_help(self) -> None:
+        """Show reader keybindings overlay (?)."""
+        from .screens.reader_screen import ReaderScreen
+
+        if isinstance(self.screen, ReaderScreen):
+            self.screen.action_show_reader_help()
+
     def action_open_picker(self) -> None:
         """Open figure picker (Ctrl+G)."""
         from .screens.reader_screen import ReaderScreen
