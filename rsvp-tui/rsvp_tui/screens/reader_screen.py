@@ -236,7 +236,16 @@ class ReaderScreen(RSVPBaseScreen):
 
         host = self.query_one("#figure-host", Static)
         # Apply per-figure params from config (if any).
-        params = self.config.figure_params.get(fig_id) or {}
+        params = dict(self.config.figure_params.get(fig_id) or {})
+        # Seed the global density preferences into the figure. A
+        # per-figure param (already in ``params``) always wins: the
+        # figure-local setting is the more specific one.
+        for key in ("font_size_scale", "context_words_above", "context_words_below"):
+            params.setdefault(key, getattr(self.config, key))
+        # ``words_per_line`` is the global strip width; the multi-word
+        # figures call the same knob ``chunk_size``.
+        if "chunk_size" in new_fig.default_params:
+            params.setdefault("chunk_size", self.config.words_per_line)
         state = FigureState(
             words=self._words,
             word_index=self._index,
@@ -675,13 +684,14 @@ class ReaderScreen(RSVPBaseScreen):
             return default
         return self._figure.get_param(key, default)
 
-    def _set_active_param(self, key: str, value: Any) -> None:
+    def _set_active_param(self, key: str, value: Any, notify: bool = True) -> None:
         if self._figure is None:
             return
         self._figure.set_param(key, value)
         fig_id = self.current_figure_id
         self.config.figure_params.setdefault(fig_id, {})[key] = value
-        self.app.notify(f"Param {key!r} set to {value!r}")
+        if notify:
+            self.app.notify(f"Param {key!r} set to {value!r}")
 
     # ---- Live density / sizing controls (v3.2) ---------------------
 
@@ -694,7 +704,7 @@ class ReaderScreen(RSVPBaseScreen):
             return
         self.config.font_size_scale = new_value
         self.config.save()
-        self._set_active_param("font_size_scale", new_value)
+        self._set_active_param("font_size_scale", new_value, notify=False)
         self.app.notify(f"Font size → {new_value}")
 
     def action_decrease_font(self, step: int = 1) -> None:
@@ -706,38 +716,75 @@ class ReaderScreen(RSVPBaseScreen):
             return
         self.config.font_size_scale = new_value
         self.config.save()
-        self._set_active_param("font_size_scale", new_value)
+        self._set_active_param("font_size_scale", new_value, notify=False)
         self.app.notify(f"Font size → {new_value}")
+
+    def _current_context_rows(self) -> tuple[int, int]:
+        """The context rows the active figure is currently rendering.
+
+        The figure owns that number (it knows its ``frame_style``
+        preset), so the hotkeys step from wherever it actually is
+        instead of from a hard-coded default.
+        """
+        getter = getattr(self._figure, "effective_context_rows", None)
+        if callable(getter):
+            try:
+                above, below = getter()
+            except Exception:
+                above = below = 0
+            if above or below:
+                return above, below
+        return (
+            self.config.context_words_above or 1,
+            self.config.context_words_below or 1,
+        )
 
     def action_context_up(self) -> None:
         """Add one line of context above+bellow the focal word."""
-        cur = self.config.context_words_above
-        new_value = min(8, cur + 1)
+        cur_above, _ = self._current_context_rows()
+        new_value = min(8, cur_above + 1)
         self.config.context_words_above = new_value
         self.config.context_words_below = new_value
         self.config.save()
-        self._set_active_param("context_window", new_value)
+        self._set_active_param("context_words_above", new_value, notify=False)
+        self._set_active_param("context_words_below", new_value, notify=False)
+        # ``context_window`` drives the unframed ("minimal") figure.
+        self._set_active_param("context_window", new_value, notify=False)
         self.app.notify(f"Context lines → {new_value}")
 
     def action_context_down(self) -> None:
         """Remove one line of context above+bellow."""
-        cur = self.config.context_words_above
-        new_value = max(0, cur - 1)
+        cur_above, _ = self._current_context_rows()
+        new_value = max(0, cur_above - 1)
         self.config.context_words_above = new_value
         self.config.context_words_below = new_value
         self.config.save()
-        self._set_active_param("context_window", new_value)
+        self._set_active_param("context_words_above", new_value, notify=False)
+        self._set_active_param("context_words_below", new_value, notify=False)
+        self._set_active_param("context_window", new_value, notify=False)
         self.app.notify(f"Context lines → {new_value}")
 
     def action_words_per_line(self, delta: int = 0) -> None:
-        """Adjust ``words_per_line`` (1..15) and persist."""
+        """Adjust ``words_per_line`` (1..15) and persist.
+
+        ``words_per_line`` is the global strip width. The multi-word
+        figures (horizontal, chunk) expose the same knob as
+        ``chunk_size`` — that is the one that decides how many words
+        the strip shows — so we push the value there.
+        """
         cur = self.config.words_per_line
         new_value = min(15, max(1, cur + delta))
         if new_value == cur:
             return
         self.config.words_per_line = new_value
         self.config.save()
-        self._set_active_param("words_per_line", new_value)
+        if self._figure is not None:
+            param = (
+                "chunk_size"
+                if "chunk_size" in self._figure.default_params
+                else "words_per_line"
+            )
+            self._set_active_param(param, new_value, notify=False)
         self.app.notify(f"Words/line → {new_value}")
 
     def action_show_reader_help(self) -> None:
