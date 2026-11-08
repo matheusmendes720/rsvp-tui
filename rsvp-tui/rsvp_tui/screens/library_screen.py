@@ -24,7 +24,7 @@ from ..models import Book, Config
 from ..widgets import LibraryView
 from .base import RSVPBaseScreen
 from .messages import BookOpened
-from .settings_screen import SettingsScreen
+from .settings_screen import SettingsScreen, _ConfirmModal
 
 log = logging.getLogger(__name__)
 
@@ -47,9 +47,10 @@ class LibraryScreen(RSVPBaseScreen):
     BINDINGS = [
         # ---- Ctrl variants (always-on, no focus issues) ----
         # Action strings MUST be the bare method name (e.g. "refresh");
-        # Textual auto-prefixes ``action_`` during dispatch. Using
-        # ``"action_refresh"`` here would resolve to ``action_action_refresh``
-        # and silently no-op. See tests/test_keybindings.py for the guard.
+        # Textual auto-prefixes ``action_`` during dispatch. The
+        # ``"app.refresh"`` form also works (it targets the App), but
+        # the screen-level action is the one the footer advertises.
+        # See tests/test_keybindings.py for the orphan-binding guard.
         Binding("ctrl+r", "refresh", "Refresh"),
         Binding("ctrl+s", "open_settings", "Settings"),
         Binding("ctrl+o", "open_file", "Open"),
@@ -98,11 +99,22 @@ class LibraryScreen(RSVPBaseScreen):
         self.post_message(BookOpened(book_id=book.id))
 
     def _on_book_deleted(self, book_id: str) -> None:
-        """Refresh after a delete so the row disappears."""
-        if self._library_view is not None:
-            self._library_view.load_books()
-        self.app.notify("Book deleted")
-        log.info("LibraryScreen: book deleted id=%s", book_id)
+        """Ask for confirmation before dropping a book.
+
+        The deletion drops the reading progress and the cached
+        tokenization of that book, so it is never a one-key action.
+        """
+        library_manager = self.app.library_manager  # type: ignore[attr-defined]
+        book = library_manager.get_book(book_id)
+        if book is None:
+            self.app.notify("No book selected")
+            return
+        self.app.push_screen(
+            _ConfirmModal(
+                f"Delete '{book.title}'? This drops its reading progress."
+            ),
+            lambda confirmed: self._on_delete_confirmed(book.id, confirmed),
+        )
 
     # ---- Actions ---------------------------------------------------------
 
@@ -174,14 +186,24 @@ class LibraryScreen(RSVPBaseScreen):
         self.post_message(BookOpened(book_id=book.id))
 
     def action_delete_selected(self) -> None:
-        """Delete the currently-selected book."""
+        """Delete the book under the cursor — after a confirmation.
+
+        The target is resolved from the table cursor, not from the last
+        opened book: the cursor is what the user is looking at.
+        """
         if self._library_view is None:
             return
-        book = self._library_view.get_selected_book()
+        self._library_view.action_delete_selected()
+
+    def _on_delete_confirmed(self, book_id: str, confirmed: bool) -> None:
+        """Carry out the deletion the user confirmed."""
+        if not confirmed:
+            return
+        library_manager = self.app.library_manager  # type: ignore[attr-defined]
+        book = library_manager.get_book(book_id)
         if book is None:
             self.app.notify("No book selected")
             return
-        library_manager = self.app.library_manager  # type: ignore[attr-defined]
         try:
             library_manager.delete_book(book.id)
         except (OSError, ValueError, sqlite3.DatabaseError) as e:
@@ -198,8 +220,10 @@ class LibraryScreen(RSVPBaseScreen):
             # because delete_book is DB-heavy.
             self.app.notify(f"Delete failed: {e}", severity="error")
             return
-        self._library_view.load_books()
+        if self._library_view is not None:
+            self._library_view.load_books()
         self.app.notify(f"Deleted {book.title}")
+        log.info("LibraryScreen: book deleted id=%s", book.id)
 
     def action_focus_next_book(self) -> None:
         """Move DataTable selection down by one row."""

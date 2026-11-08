@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable
 
 from textual.app import ComposeResult
 from textual.containers import Vertical
+from textual.coordinate import Coordinate
 from textual.reactive import reactive
 from textual.widgets import DataTable, Input
 
@@ -104,10 +106,48 @@ class LibraryView(Vertical):
             if book:
                 self.on_select_callback(book)
 
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        """Keep the selection in sync with the table cursor.
+
+        ``RowSelected`` only fires on Enter, so moving the cursor with
+        the arrow keys used to leave ``selected_book_id`` pointing at
+        the book that was last *opened*. Delete then removed that book
+        — one the user was no longer looking at. The cursor is the
+        truth about what is selected.
+        """
+        book_id = event.row_key.value
+        if book_id is not None:
+            self.selected_book_id = str(book_id)
+
+    def get_book_under_cursor(self) -> Book | None:
+        """Return the book the table cursor is on.
+
+        This is the authoritative target for the destructive actions:
+        it follows the cursor, not the last Enter.
+        """
+        try:
+            table = self.query_one(DataTable)
+        except Exception:
+            return None
+        if table.row_count == 0:
+            return None
+        row = min(max(0, table.cursor_row), table.row_count - 1)
+        try:
+            cell_key = table.coordinate_to_cell_key(Coordinate(row, 0))
+        except Exception:
+            return None
+        book_id = cell_key.row_key.value
+        if book_id is None:
+            return None
+        return self.library_manager.get_book(str(book_id))
+
     def action_delete_selected(self) -> None:
-        """Delete the selected book."""
-        if self.selected_book_id and self.on_delete_callback:
-            self.on_delete_callback(self.selected_book_id)
+        """Delete the book under the cursor."""
+        book = self.get_book_under_cursor()
+        if book is None:
+            return
+        if self.on_delete_callback:
+            self.on_delete_callback(book.id)
             self.load_books()
 
     def action_refresh(self) -> None:
@@ -115,7 +155,10 @@ class LibraryView(Vertical):
         self.load_books()
 
     def get_selected_book(self) -> Book | None:
-        """Get the currently selected book."""
+        """Get the selected book (the one under the cursor)."""
+        book = self.get_book_under_cursor()
+        if book is not None:
+            return book
         if self.selected_book_id:
             return self.library_manager.get_book(self.selected_book_id)
         return None
@@ -124,10 +167,8 @@ class LibraryView(Vertical):
 
     def focus_table(self) -> None:
         """Move focus to the DataTable so arrow keys navigate rows."""
-        try:
+        with contextlib.suppress(Exception):
             self.query_one(DataTable).focus()
-        except Exception:
-            pass
 
     def move_cursor(self, delta: int) -> None:
         """Move the table cursor by ``delta`` rows (clamped)."""
@@ -141,13 +182,11 @@ class LibraryView(Vertical):
         new_row = max(0, min(table.row_count - 1, current + delta))
         table.move_cursor(row=new_row)
         # Mirror into our reactive so the screen-level action sees it.
-        row_key = table.coordinate_to_cell_key((new_row, 0)).row_key
+        row_key = table.coordinate_to_cell_key(Coordinate(new_row, 0)).row_key
         if row_key is not None:
             self.selected_book_id = str(row_key.value)
 
     def focus_search(self) -> None:
         """Move focus to the search input."""
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#search-input", Input).focus()
-        except Exception:
-            pass
