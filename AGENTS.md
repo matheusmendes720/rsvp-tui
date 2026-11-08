@@ -31,6 +31,11 @@ Spec sheets (`docs/SPEC.*.md`) cover algorithms, data model, design.
 * **`rsvp_workspace/`** is a tiny shim package — its `__init__.py` re-exports
   `main()` from `scripts/*.py` so they can be wired as console scripts in the
   root `pyproject.toml`. Don't add logic here.
+* **`chapter_map_tui`** (PDF chapter cascade) is an OPTIONAL dependency that
+  is not on PyPI — it is imported lazily and guarded. When it is missing,
+  every PDF is parsed as a single chunk; the reader logs one warning. Do not
+  add it to `pyproject.toml`: `uv lock` cannot resolve it and the whole
+  build would fail.
 
 ---
 
@@ -39,7 +44,7 @@ Spec sheets (`docs/SPEC.*.md`) cover algorithms, data model, design.
 ```bash
 uv sync                      # installs everything into .venv
 uv run rsvp-build            # one-time ~30s — builds rsvp-core + rsvp-cli
-uv run rsvp-test             # 179 pytest tests (rsvp-tui/tests/)
+uv run rsvp-test             # 248 pytest tests (rsvp-tui/tests/)
 uv run rsvp                  # == uv run rsvp-tui (default: legacy UI)
 RSVP_NEW_UI=1 uv run rsvp    # opt into the screens-based UI
 ```

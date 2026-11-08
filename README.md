@@ -338,6 +338,23 @@ Default keybindings (overridable in `~/.rsvp/config.json`):
 | `NO_COLOR` | unset | Disable ANSI colour in helper scripts |
 | `PYTHONIOENCODING` | unset | Set to `utf-8` for non-ASCII books |
 
+## Optional: PDF chapter detection
+
+`rsvp_tui/fallbacks.py` can resolve real chapter boundaries in a PDF
+with a three-layer cascade (PyMuPDF outline → regex TOC page → font-size
+heuristic). That cascade lives in the **`chapter_map_tui`** package,
+which is **not published on PyPI** — so it cannot be declared as an
+installable extra (`uv lock` would fail to resolve it). Install it
+manually if you want PDF chapters:
+
+```bash
+pip install chapter-map-tui        # or: pip install <path-or-git-url>
+```
+
+Without it every PDF still imports and reads fine, but it is parsed as
+a **single chunk** (one chapter). The reader logs one warning the first
+time it hits a PDF, so the degradation is visible instead of silent.
+
 ## Building from source
 
 ```bash
@@ -349,7 +366,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh  # Rust
 # Full build
 uv sync
 uv run rsvp-build            # builds rsvp-core + rsvp-cli
-uv run rsvp-test             # 179 pytest tests
+uv run rsvp-test             # 248 pytest tests
 cd rsvp-cli && cargo test    # 5 Rust CLI tests
 cd ../rsvp-core && cargo test  # 23 Rust core tests (5 pre-existing
                                 # assertion bugs in test files)

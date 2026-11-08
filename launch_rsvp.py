@@ -10,7 +10,14 @@ and the launcher would silently ImportError against the modular
 ``rsvp_tui.app.RSVPApp`` path that the package actually ships.
 """
 
-from rsvp_tui.cli import main
+import sys
+from pathlib import Path
+
+# Make the launcher work from a plain checkout (``python launch_rsvp.py``)
+# where the package is not installed: put ``rsvp-tui/`` on the path.
+sys.path.insert(0, str(Path(__file__).parent / "rsvp-tui"))
+
+from rsvp_tui.cli import main  # noqa: E402 — needs the sys.path above
 
 if __name__ == "__main__":
     main()

@@ -150,6 +150,10 @@ class NotePanel(Vertical):
         # For now, just a placeholder
         if self.on_note_added:
             self.on_note_added(self.current_word_index)
+            # The callback owns the write; the cached copy of this
+            # book's notes is stale now. Invalidate it so the note shows
+            # up without waiting for a book switch.
+            self.refresh_notes()
 
     def set_position(self, book_id: str, word_index: int) -> None:
         """Update the current reading position."""

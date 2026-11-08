@@ -57,7 +57,7 @@ rspv/
     ├── rsvp_tui/
     │   ├── __init__.py             # Exports + Rust detection
     │   ├── __main__.py             # Entry point
-    │   ├── app_complete.py         # FULL TUI (750 lines)
+    │   ├── app.py                  # App shell (legacy + new UI modes)
     │   ├── models.py               # Data classes (350 lines)
     │   ├── cli.py                  # CLI commands (200 lines)
     │   ├── fallbacks.py            # Python fallbacks (270 lines)
