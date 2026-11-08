@@ -1,9 +1,31 @@
 """Pure Python fallback implementations when Rust is not available."""
 
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+log = logging.getLogger(__name__)
+
+# The PDF chapter cascade lives in the optional ``chapter-map-tui``
+# package. When it is missing we fall back to the single-chunk parser —
+# but we say so ONCE, because the symptom (a PDF with no chapters) is
+# otherwise indistinguishable from a PDF that genuinely has no outline.
+_CHAPTER_MAP_MISSING_LOGGED = False
+
+
+def _log_missing_chapter_map() -> None:
+    """Warn once that the chapter cascade is unavailable."""
+    global _CHAPTER_MAP_MISSING_LOGGED
+    if _CHAPTER_MAP_MISSING_LOGGED:
+        return
+    _CHAPTER_MAP_MISSING_LOGGED = True
+    log.warning(
+        "chapter-map-tui is not installed — every PDF falls back to the "
+        "single-chunk parser (no chapters). Install the optional extra: "
+        "pip install 'rsvp-tui[chapter-map]'"
+    )
 
 
 @dataclass
@@ -341,9 +363,9 @@ def _parse_pdf_doc_with_chapters(doc: Any, file_path: Path) -> ParseResult:
 
     # --- Try chapter-map-tui cascade ---
     try:
+        from chapter_map_tui.parsers.font_size import parse_font_size_heuristic
         from chapter_map_tui.parsers.outline import parse_pymupdf_outline
         from chapter_map_tui.parsers.word_index import build_word_index
-        from chapter_map_tui.parsers.font_size import parse_font_size_heuristic
 
         # Layer 1: PyMuPDF outline
         chapter_map = parse_pymupdf_outline(file_path)
@@ -400,6 +422,11 @@ def _parse_pdf_doc_with_chapters(doc: Any, file_path: Path) -> ParseResult:
                 )
 
         if chapters:
+            log.debug(
+                "PDF chapters resolved via the %s cascade (%d chapters)",
+                source,
+                len(chapters),
+            )
             return ParseResult(
                 title=title,
                 author=author,
@@ -410,10 +437,10 @@ def _parse_pdf_doc_with_chapters(doc: Any, file_path: Path) -> ParseResult:
 
     except ImportError:
         # chapter-map-tui not installed — fall through to simple parser
-        pass
+        _log_missing_chapter_map()
     except Exception:  # noqa: BLE001
         # Any other error — fall through to simple parser
-        pass
+        log.debug("chapter-map cascade failed; falling back", exc_info=True)
 
     # --- Fallback: simple single-chunk parsing ---
     return _parse_pdf_doc(doc)
