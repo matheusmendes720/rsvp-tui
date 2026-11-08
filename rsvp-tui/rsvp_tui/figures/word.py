@@ -25,10 +25,12 @@ from .. import calculate_orp_index, split_word_for_display
 from ..themes import get_theme
 from .base import Figure
 from .frame import (
+    DEFAULT_FRAME_WIDTH,
     FrameContext,
     FrameSpec,
     HorizontalFrame,
     ProgressInfo,
+    resolve_frame_geometry,
 )
 
 
@@ -61,6 +63,12 @@ class WordFigure(Figure):
         # frame in settings.
         "frame_style": "wide",
         "frame_width": 0,        # 0 = auto (terminal width)
+        # Scale of the reading window (1 = full width, 5 = 60%).
+        "font_size_scale": 1,
+        # Context rows above/below the focal word (0 = follow the
+        # ``frame_style`` preset).
+        "context_words_above": 0,
+        "context_words_below": 0,
         "border_style": "heavy",
     }
 
@@ -142,14 +150,24 @@ class WordFigure(Figure):
         orp_idx = calculate_orp_index(current)
         parts = split_word_for_display(current, orp_idx)
 
-        context_lines = 1 if frame_style == "wide" else 3
-        frame_width = int(self._params.get("frame_width", 0)) or 100
+        # Context rows above/below the focal word. The ``frame_style``
+        # preset is the fallback; the ``context_words_above`` /
+        # ``context_words_below`` params (the "{" / "}" hotkeys and the
+        # global config) override it when they are set.
+        above_rows, below_rows = self._context_rows(frame_style)
+
+        frame_width = int(self._params.get("frame_width", 0))
+        if frame_width <= 0:
+            frame_width = self._probe_terminal_width() or DEFAULT_FRAME_WIDTH
+        width, min_width = resolve_frame_geometry(
+            frame_width, int(self._params.get("font_size_scale", 1))
+        )
 
         spec = FrameSpec(
-            width=frame_width,
-            min_width=60,
+            width=width,
+            min_width=min_width,
             max_width=160,
-            context_lines=context_lines,
+            context_lines=max(above_rows, below_rows),
             border=str(self._params.get("border_style", "heavy")),
             # show_frame=False: the outer Panel below is the single frame.
             show_frame=False,
@@ -158,9 +176,9 @@ class WordFigure(Figure):
             show_pivot=True,
         )
 
-        # Context: surrounding words (1 row above + 1 below in "wide" mode)
+        # Context: surrounding words (one row above + below by default).
         context_above, context_below = self._get_context_words(
-            window=1 if frame_style == "wide" else 2
+            above=above_rows, below=below_rows
         )
 
         total = len(self._words)
@@ -204,24 +222,50 @@ class WordFigure(Figure):
             expand=False,
         )
 
+    def _context_rows(self, frame_style: str = "wide") -> tuple[int, int]:
+        """(above, below) context rows rendered around the focal word.
+
+        The ``frame_style`` preset is the fallback:
+
+        * ``"wide"`` → 1 row on each side
+        * ``"expanded"`` → 3 rows on each side
+
+        The ``context_words_above`` / ``context_words_below`` params
+        override the preset when they are set (they are what the "{"
+        and "}" hotkeys drive, and what the global config seeds).
+        """
+        preset = 1 if frame_style == "wide" else 3
+        above = int(self._params.get("context_words_above", 0) or 0) or preset
+        below = int(self._params.get("context_words_below", 0) or 0) or preset
+        return max(0, above), max(0, below)
+
+    def effective_context_rows(self) -> tuple[int, int]:
+        """(above, below) context rows currently rendered.
+
+        The reader screen uses this to step the context window up and
+        down from wherever it actually is.
+        """
+        return self._context_rows(str(self._params.get("frame_style", "wide")))
+
     def _get_context_words(
-        self, window: int = 1
+        self, above: int = 1, below: int = 1
     ) -> tuple[list[str], list[str]]:
-        """Return up to ``window`` words before and after the focal word."""
-        above: list[str] = []
-        below: list[str] = []
-        for offset in range(1, window + 1):
+        """Return up to ``above``/``below`` words around the focal word."""
+        above_list: list[str] = []
+        below_list: list[str] = []
+        for offset in range(1, above + 1):
             idx_before = self.word_index - offset
             if 0 <= idx_before < len(self._words):
-                above.insert(0, self._words[idx_before])
+                above_list.insert(0, self._words[idx_before])
             else:
-                above.insert(0, "")
+                above_list.insert(0, "")
+        for offset in range(1, below + 1):
             idx_after = self.word_index + offset
             if 0 <= idx_after < len(self._words):
-                below.append(self._words[idx_after])
+                below_list.append(self._words[idx_after])
             else:
-                below.append("")
-        return above, below
+                below_list.append("")
+        return above_list, below_list
 
     # ------------------------------------------------------------------ #
     # ORP formatting

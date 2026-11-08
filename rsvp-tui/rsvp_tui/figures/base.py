@@ -321,6 +321,32 @@ class Figure(Static):
 
     # ---- Internal -------------------------------------------------------
 
+    def _probe_terminal_width(self) -> int | None:
+        """Width available to this figure, or ``None`` when not mounted.
+
+        Prefers the widget's own size (the figure host is narrower than
+        the terminal when side panels are open) and falls back to the
+        app size. Returns ``None`` outside a running Textual app, so
+        callers must handle that — the figures use it to size the
+        reading window.
+        """
+        try:
+            size = self.size
+        except Exception:
+            size = None
+        if size is not None and size.width > 0:
+            return size.width
+        try:
+            app = self.app
+        except Exception:
+            return None
+        if app is None:
+            return None
+        app_size = app.size
+        if app_size is None:
+            return None
+        return app_size.width or None
+
     def _current_word(self) -> str:
         if 0 <= self.word_index < len(self._words):
             return self._words[self.word_index]

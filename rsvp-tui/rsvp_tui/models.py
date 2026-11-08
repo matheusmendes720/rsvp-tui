@@ -318,18 +318,22 @@ class Config:
 
     # --- v3.2 fields (live density / sizing controls) ---
 
-    # Font / word size scale (1=normal, 2=large, 3=huge). Mapped to
+    # Font / word size scale (1=normal … 5=huge). Mapped to the
     # figure's ``font_size_scale`` param so the Reader can grow/shrink
-    # words with +/- keys.
-    font_size_scale: int = 2  # 1-3
+    # the reading window with the +/- keys: a terminal can't change the
+    # glyph size, so a "bigger font" is a narrower reading window.
+    font_size_scale: int = 2  # 1-5
 
     # Lines of context above/below the focal word in the WordFigure.
-    # 3 each side matches the RSVP-HORIZONTAL product reference.
-    context_words_above: int = 3
-    context_words_below: int = 3
+    # 0 means "auto": the figure follows its own ``frame_style``
+    # preset (1 row for "wide", 3 for "expanded"). Any other value
+    # overrides the preset — that is what the { and } hotkeys write.
+    context_words_above: int = 0
+    context_words_below: int = 0
 
     # Words-per-line for horizontal displays. 5 is roughly one human
-    # eye-saccade span.
+    # eye-saccade span. Seeded into the ``chunk_size`` param of the
+    # multi-word figures (horizontal, chunk).
     words_per_line: int = 5
 
     # --- Storage paths ---

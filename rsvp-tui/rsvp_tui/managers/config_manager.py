@@ -74,9 +74,11 @@ def _migrate_3_to_4(data: dict[str, Any]) -> dict[str, Any]:
     """v3 -> v4: add live density / sizing controls.
 
     New fields:
-    * font_size_scale — 1..3 (small / normal / large)
+    * font_size_scale — 1..5 (the reading-window scale)
     * context_words_above — lines of context shown above the focal word
+      (0 = auto: follow the figure's frame_style preset)
     * context_words_below — lines of context shown below the focal word
+      (0 = auto: follow the figure's frame_style preset)
     * words_per_line — width of horizontal displays
 
     Older versions stay on their existing values; users opt in by
@@ -85,8 +87,8 @@ def _migrate_3_to_4(data: dict[str, Any]) -> dict[str, Any]:
     data = dict(data)  # don't mutate the caller's dict
     data["schema_version"] = 4
     data.setdefault("font_size_scale", 2)
-    data.setdefault("context_words_above", 3)
-    data.setdefault("context_words_below", 3)
+    data.setdefault("context_words_above", 0)
+    data.setdefault("context_words_below", 0)
     data.setdefault("words_per_line", 5)
     return data
 
@@ -192,8 +194,8 @@ class ConfigManager:
                 advance_trigger=data.get("advance_trigger", "time"),
                 # v3.2 fields (live density / sizing)
                 font_size_scale=data.get("font_size_scale", 2),
-                context_words_above=data.get("context_words_above", 3),
-                context_words_below=data.get("context_words_below", 3),
+                context_words_above=data.get("context_words_above", 0),
+                context_words_below=data.get("context_words_below", 0),
                 words_per_line=data.get("words_per_line", 5),
                 config_path=self.path,
             )

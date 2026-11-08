@@ -110,6 +110,19 @@ class _BoxChars:
     tee_left: str            # ┫ / ╡ / ┤  (right of pivot on inner rule)
 
 
+# The border style used when the configured one is unknown. "light" is
+# the most portable of the four (every terminal has ─ │ ┌ ┐).
+DEFAULT_BORDER = BorderStyle.LIGHT.value
+
+# Narrowest reading window we render. Below this the pivot column and
+# the ORP highlight stop making sense.
+MIN_FRAME_WIDTH = 20
+
+# Width used when the terminal size can't be probed (figure rendered
+# outside a running Textual app — e.g. in a unit test).
+DEFAULT_FRAME_WIDTH = 100
+
+
 _BOX_SETS: dict[str, _BoxChars] = {
     BorderStyle.HEAVY.value: _BoxChars(
         horizontal="━",
@@ -234,6 +247,20 @@ class FrameSpec:
     title: str = ""
     subtitle: str = ""
 
+    def __post_init__(self) -> None:
+        """Reject an unknown border style instead of failing at render.
+
+        ``border`` comes from user-editable config (Settings → Advanced
+        → per-figure params), so any string can land here. An unknown
+        value used to reach ``_BOX_SETS[self.border]`` and raise
+        ``KeyError`` — in the middle of a render, on the next start-up,
+        with the bad value still persisted in ``config.json``. We clamp
+        it to the portable default at construction time so the bad
+        value can never crash a frame.
+        """
+        if self.border not in _BOX_SETS:
+            object.__setattr__(self, "border", DEFAULT_BORDER)
+
     def clamped_width(self, terminal_cols: int | None = None) -> int:
         """Pick a final width honoring min, max, AND terminal cols.
 
@@ -249,8 +276,36 @@ class FrameSpec:
         return width
 
     def box_chars(self) -> _BoxChars:
-        """Return the box-drawing set for this spec's ``border``."""
-        return _BOX_SETS[self.border]
+        """Return the box-drawing set for this spec's ``border``.
+
+        ``__post_init__`` already normalised an unknown style; the
+        ``.get`` fallback is belt-and-braces for specs rebuilt by
+        ``dataclasses.replace`` or unpickled from an old config.
+        """
+        return _BOX_SETS.get(self.border, _BOX_SETS[DEFAULT_BORDER])
+
+
+def resolve_frame_geometry(
+    base_width: int, font_size_scale: int = 1
+) -> tuple[int, int]:
+    """Return ``(width, min_width)`` for the reading window.
+
+    A terminal can't change the glyph size, so ``font_size_scale``
+    narrows the reading window instead: every step up takes 10% of the
+    width away, which makes the focal word take up a larger share of
+    the window — the closest a TUI gets to "bigger font".
+
+    ``min_width`` shrinks with the same ratio so a scaled window is
+    never clamped back up to the unscaled minimum (which would make
+    the scale a no-op on narrow terminals).
+    """
+    scale = max(1, min(5, int(font_size_scale)))
+    base = max(MIN_FRAME_WIDTH, int(base_width))
+    # scale 1 → 100% of the base width, scale 5 → 60%.
+    percent = 11 - scale
+    width = max(MIN_FRAME_WIDTH, base * percent // 10)
+    min_width = max(MIN_FRAME_WIDTH, min(60, base) * percent // 10)
+    return width, min_width
 
 
 @dataclass(frozen=True)
@@ -286,6 +341,17 @@ class FrameContext:
     subtitle: str = ""
     header_meta: str = ""              # raw header metadata (chapter, %)
     footer_meta: str = ""              # raw footer metadata (controls, ETA)
+    # ---- Horizontal strip (multi-word focal row) ---------------------- #
+    # ``focal_strip`` holds the words shown around the focal word on the
+    # focal row; ``focal_strip_index`` is the position of the focal word
+    # inside it. Empty strip == single-word focal row (the classic RSVP
+    # look, used by WordFigure).
+    focal_strip: Sequence[str] = ()
+    focal_strip_index: int = 0
+    # Fade the peripheral words toward the edges of the strip.
+    focal_strip_fade: bool = True
+    # Bold the leading letter of every peripheral word (bionic-style).
+    focal_strip_bold_hint: bool = False
 
 
 # --------------------------------------------------------------------------- #
@@ -376,6 +442,85 @@ def _normalise_focal_parts(parts: object) -> tuple[str, str, str]:
     return (before, char, after)
 
 
+def _peripheral_style(theme: Theme, distance: int, fade: bool = True) -> str:
+    """Style for a peripheral word: brighter close to the focal word.
+
+    ``distance`` is 1 for the immediate neighbour and grows outwards.
+    Without ``fade`` every peripheral word uses the plain anchor
+    colour (the "flat dim" alternative the figure exposes).
+    """
+    anchor = theme.orp_anchor
+    if not fade:
+        return anchor
+    focus_dim = getattr(theme, "focus_dim", "dim white")
+    if distance <= 1:
+        return anchor
+    if distance == 2:
+        return focus_dim
+    # progressively dimmer via Rich's italic+dim combo
+    return f"dim {focus_dim}" if "dim" not in focus_dim else focus_dim
+
+
+def _append_peripheral(text: Text, word: str, style: str, bold_hint: bool) -> None:
+    """Append a peripheral word, optionally bolding its first letter.
+
+    ``bold_hint`` is the bionic-style hint: the leading letter is
+    bolded so the eye can latch onto the word start without a full
+    bionic rendering.
+    """
+    if not bold_hint or not word:
+        text.append(word, style=style)
+        return
+    text.append(word[0], style=f"{style} bold")
+    text.append(word[1:], style=style)
+
+
+def _fit_strip(
+    left_words: list[str],
+    right_words: list[str],
+    pivot_col: int,
+    inner_width: int,
+    before_cells: int,
+    orp_cells: int,
+    after_cells: int,
+) -> tuple[list[str], list[str]]:
+    """Drop the outermost words until the strip fits the window.
+
+    Two constraints:
+      * the words left of the focal word must fit before the pivot
+        column, otherwise the ORP letter slides off the pivot;
+      * the whole row must fit the inner width, otherwise the frame
+        row overflows.
+
+    Words are dropped from the outside in (the farthest word first),
+    so the neighbours of the focal word always survive.
+    """
+    left_words = list(left_words)
+    right_words = list(right_words)
+    while True:
+        left_cells = sum(_cell_width(w) for w in left_words) + len(left_words)
+        right_cells = sum(_cell_width(w) for w in right_words) + len(right_words)
+
+        if left_cells + before_cells > pivot_col and left_words:
+            left_words = left_words[:-1]
+            continue
+
+        total = (
+            left_cells + right_cells
+            + before_cells + orp_cells + after_cells
+        )
+        if total > inner_width:
+            if len(left_words) >= len(right_words) and left_words:
+                left_words = left_words[:-1]
+                continue
+            if right_words:
+                right_words = right_words[:-1]
+                continue
+
+        break
+    return left_words, right_words
+
+
 # --------------------------------------------------------------------------- #
 # The frame renderer
 # --------------------------------------------------------------------------- #
@@ -429,6 +574,19 @@ class HorizontalFrame:
 
         rows: list[Text] = []
 
+        # ---- Context rows ------------------------------------------------
+        # ``spec.context_lines`` is the number of rows rendered on EACH
+        # side of the focal row. Trimming here (instead of trusting the
+        # caller) keeps the field live: the frame never draws more rows
+        # than the spec allows.
+        context_above = list(ctx.context_above)
+        context_below = list(ctx.context_below)
+        if spec.context_lines > 0:
+            # ``above`` is ordered far→near, ``below`` near→far: keep the
+            # rows closest to the focal word.
+            context_above = context_above[-spec.context_lines:]
+            context_below = context_below[:spec.context_lines]
+
         # ---- Header rule ----------------------------------------------
         if spec.show_header:
             rows.append(self._header_rule(ctx, width, box, rule_color, heavy_color, corner_color))
@@ -436,8 +594,8 @@ class HorizontalFrame:
         # ---- Reading area ----------------------------------------------
         pivot_col = self._compute_pivot_column(width, ctx)
         # context_above is rendered TOP-TO-BOTTOM, top row first
-        for i, word in enumerate(ctx.context_above):
-            distance = len(ctx.context_above) - i   # 1 = nearest, N = farthest
+        for i, word in enumerate(context_above):
+            distance = len(context_above) - i   # 1 = nearest, N = farthest
             rows.append(
                 self._context_line(
                     word, width, pivot_col=pivot_col,
@@ -454,7 +612,7 @@ class HorizontalFrame:
                 heavy_color=heavy_color,
             )
         )
-        for i, word in enumerate(ctx.context_below):
+        for i, word in enumerate(context_below):
             distance = i + 1                         # 1 = nearest, N = farthest
             rows.append(
                 self._context_line(
@@ -530,14 +688,18 @@ class HorizontalFrame:
         _triple_h = "\u2505"
         if not ctx.header_meta:
             return Text(_triple_h + box.horizontal * (width - 1), style=heavy_color)
-        meta_cells = _cell_width(ctx.header_meta)
+        # The metadata comes from the figure and can be longer than the
+        # frame (a long book title on a narrow terminal). Truncate it so
+        # the rule never overflows the row width.
+        header_meta = _truncate_to_cells(ctx.header_meta, max(0, width - 2))
+        meta_cells = _cell_width(header_meta)
         fill_total = max(0, width - meta_cells - 2)   # -2 for the triple-H chars
         left_fill = fill_total // 2
         right_fill = fill_total - left_fill
         text = Text()
         text.append(_triple_h, style=corner_color)
         text.append(
-            " " * left_fill + ctx.header_meta + " " * right_fill,
+            " " * left_fill + header_meta + " " * right_fill,
             style=f"bold {heavy_color}",
         )
         text.append(_triple_h, style=corner_color)
@@ -564,14 +726,16 @@ class HorizontalFrame:
         _triple_l = "\u2504"
         if not ctx.footer_meta:
             return Text(_triple_l + box.horizontal * (width - 1), style=heavy_color)
-        meta_cells = _cell_width(ctx.footer_meta)
+        # Same overflow guard as the header rule.
+        footer_meta = _truncate_to_cells(ctx.footer_meta, max(0, width - 2))
+        meta_cells = _cell_width(footer_meta)
         fill_total = max(0, width - meta_cells - 2)
         left_fill = fill_total // 2
         right_fill = fill_total - left_fill
         text = Text()
         text.append(_triple_l, style=corner_color)
         text.append(
-            " " * left_fill + ctx.footer_meta + " " * right_fill,
+            " " * left_fill + footer_meta + " " * right_fill,
             style=heavy_color,
         )
         text.append(_triple_l, style=corner_color)
@@ -596,6 +760,11 @@ class HorizontalFrame:
           3. Pad AFTER with left-aligned spaces so the row fills the
              width with a trailing pivot column vertex.
 
+        When the context carries a horizontal strip (``focal_strip``),
+        the row becomes a multi-word strip: the words on either side of
+        the focal word are the peripheral context, and the ORP letter
+        still lands on the pivot column.
+
         If ``show_pivot`` is False we skip the trailing tee so the
         row reads like a flat strip.
         """
@@ -603,6 +772,14 @@ class HorizontalFrame:
         before, orp_char, after = _normalise_focal_parts(ctx.focal_parts)
         pivot_width = 1 if ctx.spec.show_pivot else 0
         inner_width = width - pivot_width
+
+        strip = list(ctx.focal_strip or ())
+        if strip:
+            focal_idx = max(0, min(ctx.focal_strip_index, len(strip) - 1))
+            return HorizontalFrame._strip_row(
+                ctx, strip, focal_idx, width, pivot_col, inner_width,
+                before, orp_char, after, pivot_width, box, pivot_color,
+            )
 
         if not orp_char:
             # ORP disabled: render the raw word centered in the inner area.
@@ -635,6 +812,83 @@ class HorizontalFrame:
         return text
 
     @staticmethod
+    def _strip_row(
+        ctx: FrameContext,
+        strip: list[str],
+        focal_idx: int,
+        width: int,
+        pivot_col: int,
+        inner_width: int,
+        before: str,
+        orp_char: str,
+        after: str,
+        pivot_width: int,
+        box: _BoxChars,
+        pivot_color: str,
+    ) -> Text:
+        """Render the focal row as a horizontal strip of words.
+
+        The focal word keeps its ORP highlight and stays anchored at the
+        pivot column; the words on either side are the peripheral
+        context. Words that don't fit the window are dropped from the
+        outside in, so the neighbours of the focal word always survive.
+        """
+        left_words = strip[:focal_idx]
+        right_words = strip[focal_idx + 1:]
+
+        before_cells = _cell_width(before)
+        orp_cells = _cell_width(orp_char)
+        after_cells = _cell_width(after)
+
+        left_words, right_words = _fit_strip(
+            left_words, right_words, pivot_col, inner_width,
+            before_cells, orp_cells, after_cells,
+        )
+
+        left_cells = sum(_cell_width(w) for w in left_words) + len(left_words)
+        right_cells = sum(_cell_width(w) for w in right_words) + len(right_words)
+
+        left_pad = max(0, pivot_col - left_cells - before_cells)
+        right_pad = max(
+            0,
+            inner_width - left_pad - left_cells - before_cells
+            - orp_cells - after_cells - right_cells,
+        )
+
+        text = Text()
+        text.append(" " * left_pad, style="default")
+
+        for i, word in enumerate(left_words):
+            if i:
+                text.append(" ", style="default")
+            # distance 1 == the word right before the focal one.
+            distance = len(left_words) - i
+            _append_peripheral(
+                text, word,
+                _peripheral_style(ctx.theme, distance, ctx.focal_strip_fade),
+                ctx.focal_strip_bold_hint,
+            )
+        if left_words:
+            text.append(" ", style="default")
+
+        text.append(before, style=ctx.theme.orp_anchor)
+        text.append(orp_char, style=ctx.theme.orp)
+        text.append(after, style=ctx.theme.orp_anchor)
+
+        for i, word in enumerate(right_words):
+            text.append(" ", style="default")
+            _append_peripheral(
+                text, word,
+                _peripheral_style(ctx.theme, i + 1, ctx.focal_strip_fade),
+                ctx.focal_strip_bold_hint,
+            )
+
+        text.append(" " * right_pad, style="default")
+        if pivot_width:
+            text.append(box.vertical, style=pivot_color)
+        return text
+
+    @staticmethod
     def _context_line(
         word: str,
         width: int,
@@ -659,6 +913,12 @@ class HorizontalFrame:
         # Pad left so the word ends centered around (pivot_col - 2)
         center = max(0, pivot_col - 2)  # focal starts a few cells before pivot
         left_pad = max(0, center - word_cells // 2)
+        right_pad = max(0, width - left_pad - word_cells - 1)
+        # A context row can be longer than the frame (a whole sentence
+        # on a narrow terminal). Truncate it so the row keeps its width.
+        budget = max(0, width - left_pad - 1)
+        word = _truncate_to_cells(word, budget) if budget else ""
+        word_cells = _cell_width(word)
         right_pad = max(0, width - left_pad - word_cells - 1)
         # Trailing pivot column char (only if show_pivot)
         text.append(" " * left_pad, style="default")

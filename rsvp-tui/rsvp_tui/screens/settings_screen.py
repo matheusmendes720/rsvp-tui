@@ -43,6 +43,7 @@ from textual.widgets import (
 )
 
 from ..figures import default_registry
+from ..figures.frame import BorderStyle
 from ..logging_ import telemetry
 from ..managers.config_manager import ConfigManager
 from ..models import Config
@@ -577,6 +578,17 @@ class SettingsScreen(ModalScreen[None]):
             self._schedule_apply()
         elif wid == "adv-figure":
             self._refresh_figure_params_form()
+        elif wid.startswith("advp-"):
+            # Figure-params choice (e.g. border_style).
+            fig_id = getattr(event.select, "fig_id", None)
+            key = getattr(event.select, "param_key", None)
+            if not fig_id or not key:
+                return
+            value = event.value
+            if value is Select.BLANK:
+                return
+            self._figure_params.setdefault(fig_id, {})[key] = value
+            self._schedule_apply()
 
     # ---- Field error rendering -----------------------------------------
 
@@ -656,7 +668,20 @@ class SettingsScreen(ModalScreen[None]):
         """
         wid = f"advp-{fig_id}-{key}"
         widget: Any
-        if isinstance(current, bool):
+        if key == "border_style":
+            # A free-text Input let the user persist a border style the
+            # frame cannot draw — it raised KeyError inside the render,
+            # on the next start-up, with the bad value still in
+            # config.json. A Select makes the bad value impossible.
+            styles = tuple(style.value for style in BorderStyle)
+            value = str(current) if str(current) in styles else styles[0]
+            widget = Select(
+                [(style, style) for style in styles],
+                value=value,
+                allow_blank=False,
+                id=wid,
+            )
+        elif isinstance(current, bool):
             widget = Checkbox(key, value=current, id=wid)
         elif isinstance(current, int):
             widget = Input(value=str(current), id=wid, type="integer")
